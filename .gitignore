@@ -29,6 +29,11 @@ out/
 *.backup
 report-*.md
 
+# 測試與覆蓋率
+htmlcov/
+.coverage
+.pytest_cache/
+
 # VS Code
 .vscode/
 .history/
