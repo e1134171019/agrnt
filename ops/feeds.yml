@@ -1,54 +1,35 @@
-metadata:
-  timezone: Asia/Taipei
-  default_cadence: hourly
-  owner: Automation Steward
-  notes: "示範 4 個常見技術資訊來源，可依團隊需求調整。"
+# RSS/Atom Feed 資料來源設定
+# 所有 enabled=true 的來源都會被自動抓取
 
-feeds:
-  - id: hackernews-frontpage
-    title: Hacker News 熱門討論
-    type: hackernews
-    url: https://hn.algolia.com/api/v1/search
-    cadence: hourly
-    limit: 5
-    params:
-      tags: front_page
-    tags: [startup, engineering]
+sources:
+  - name: "Hacker News (RSS)"
+    url: "https://news.ycombinator.com/rss"
+    type: "rss"
+    tags:
+      - "startup"
+      - "engineering"
+    enabled: true
 
-  - id: github-trending
-    title: GitHub 熱門開源專案
-    type: github_trending
-    url: https://api.github.com/search/repositories
-    cadence: daily
-    limit: 5
-    params:
-      language: python
-      since_days: 7
-    tags: [open-source, github]
+  - name: "GitHub Trending"
+    url: "https://mshibanami.github.io/GitHubTrendingRSS/weekly/python.xml"
+    type: "rss"
+    tags:
+      - "open-source"
+      - "python"
+    enabled: true
 
-  - id: devto-top
-    title: Dev.to Top Stories
-    type: devto
-    url: https://dev.to/api/articles
-    cadence: daily
-    limit: 5
-    params:
-      top: 7
-    tags: [community, engineering]
+  - name: "Dev.to"
+    url: "https://dev.to/feed"
+    type: "rss"
+    tags:
+      - "community"
+      - "engineering"
+    enabled: true
 
-  - id: lobsters-hottest
-    title: Lobsters 熱門主題
-    type: lobsters
-    url: https://lobste.rs/hottest.json
-    cadence: hourly
-    limit: 5
-    tags: [security, programming]
-
-outputs:
-  render:
-    format: markdown
-    file: digest-output.md
-  notify:
-    channels:
-      - github_issue
-      - email_stub
+  - name: "TechCrunch AI"
+    url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
+    type: "rss"
+    tags:
+      - "AI"
+      - "news"
+    enabled: true

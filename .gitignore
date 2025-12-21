@@ -23,8 +23,10 @@ build/
 # 暫存與輸出
 cache/
 logs/
+out/
 *.log
 *.tmp
+*.backup
 report-*.md
 
 # VS Code

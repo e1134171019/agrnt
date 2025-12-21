@@ -52,6 +52,26 @@ def setup_logging(verbose: bool = False, log_file: pathlib.Path | None = None) -
     console_formatter = logging.Formatter(
         "%(asctime)s | %(levelname)s | %(message)s",
         datefmt="%H:%M:%S"
+    )
+    console_handler.setFormatter(console_formatter)
+    
+    # File handler
+    handlers = [console_handler]
+    if log_file:
+        log_file.parent.mkdir(parents=True, exist_ok=True)
+        file_handler = logging.FileHandler(log_file, encoding="utf-8")
+        file_handler.setLevel(logging.DEBUG)  # 檔案永遠記錄 DEBUG
+        file_formatter = logging.Formatter(
+            "%(asctime)s | %(levelname)s | %(message)s",
+            datefmt="%Y-%m-%d %H:%M:%S"
+        )
+        file_handler.setFormatter(file_formatter)
+        handlers.append(file_handler)
+    
+    logging.basicConfig(level=level, handlers=handlers)
+
+
+def load_config(path: pathlib.Path) -> Dict[str, Any]:
     """載入並驗證 feeds.yml 設定檔。"""
     if not path.exists():
         LOGGER.error(f"設定檔不存在：{path}")
@@ -78,7 +98,10 @@ def setup_logging(verbose: bool = False, log_file: pathlib.Path | None = None) -
             sys.exit(1)
     
     LOGGER.info(f"載入設定：{path}")
-    returnfeed(source: Dict[str, Any]) -> List[Dict[str, Any]]:
+    return config
+
+
+def fetch_feed(source: Dict[str, Any]) -> List[Dict[str, Any]]:
     """抓取並解析單一 RSS/Atom feed。"""
     name = source["name"]
     url = source["url"]
@@ -184,45 +207,10 @@ def generate_markdown(entries: List[Dict[str, Any]], date: str) -> str:
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
     lines.append(f"*本摘要由自動化系統產生於 {now}*")
     
-    return "\n".join(linesfeed.get("id", "未命名來源"))
-        body.append(f"## {title}")
-        body.append(f"- 類型：{feed.get('type', 'n/a')} | 更新頻率：{feed.get('cadence', 'n/a')}")
-        body.append(f"- 來源連結：{feed.get('url', 'N/A')}")
-        if not items:
-            body.append("- 無可用項目，請稍後再試。")
-            body.append("")
-            continue
-        for idx, item in enumerate(items, start=1):
-            title_line = f"{idx}. {item.get('title', '未命名項目')}"
-            if item.get("url"):
-                title_line += f" — {item['url']}"
-            extras = []
-            if item.get("score") is not None:
-                extras.append(f"指標 {item['score']}")
-            if item.get("author"):
-                extras.append(f"作者 {item['author']}")
-            if extras:
-                title_line += f" ({', '.join(extras)})"
-            body.append(title_line)
-            if item.get("description"):
-                body.append(f"   - 摘要：{item['description']}")
-        body.append("")
-    return "\n".join(header + body)
+    return "\n".join(lines)
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="抓取 feeds.yml 並生成每日情資摘要")
-    parser.add_argument("--date", help="指定日期 (YYYY-MM-DD)")
-    parser.add_argument("--output", help="輸出檔案路徑，預設印出到終端", default="")
-    parser.add_argument("--dry-run", action="store_true", help="使用內建假資料，避免實際呼叫 API")
-    parser.add_argument("--verbose", action="store_true", help="輸出除錯資訊")
-    return parser.parse_args()
-
-
-def build_fake_results() -> List[Tuple[Dict[str, Any], List[Dict[str, Any]]]]:
-    dummy_feed = {"title": "範例來源", "type": "demo", "cadence": "daily", "url": "https://example.com"}
-    dummy_items = [
-        {
     """解析命令列參數。"""
     parser = argparse.ArgumentParser(description="產生技術資訊摘要")
     parser.add_argument(
@@ -291,6 +279,8 @@ def main() -> None:
         print("\n" + "=" * 50)
         print("預覽模式（不寫入檔案）")
         print("=" * 50 + "\n")
+        # 使用 UTF-8 編碼輸出避免 Windows 終端機編碼問題
+        sys.stdout.reconfigure(encoding='utf-8')
         print(markdown)
     else:
         output_path = args.output or OUT_DIR / f"digest-{args.date}.md"
@@ -302,4 +292,8 @@ def main() -> None:
             LOGGER.error(f"寫入檔案失敗：{e}")
             sys.exit(3)
     
-    LOGGER.info("執行完成"
+    LOGGER.info("執行完成")
+
+
+if __name__ == "__main__":
+    main()
