@@ -18,20 +18,22 @@ jobs:
         with:
           script: |
             const today = new Date().toISOString().slice(0,10);
-            const title = [Digest] ;
+            const title = `[Digest] ${today}`;
             const body = [
               "自動建立的每日 Digest 任務單。",
               "",
-              "DoD：",
-              "- 產出 out/digest-" + today + ".md",
-              "- 每個來源至少 Top 5（標題 + 連結）",
+              "**DoD：**",
+              "- [ ] 產出 `out/digest-" + today + ".md`",
+              "- [ ] 每個來源至少 Top 5（標題 + 連結）",
+              "- [ ] Markdown 格式正確",
               "",
-              "來源請參考 ops/feeds.yml"
+              "來源請參考 `ops/feeds.yml`"
             ].join("\n");
+            
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              title,
-              body,
+              title: title,
+              body: body,
               labels: ["intel", "digest"]
             });
