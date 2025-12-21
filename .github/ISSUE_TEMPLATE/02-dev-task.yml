@@ -1,0 +1,26 @@
+﻿name: "Dev Task"
+description: "一般功能/修 bug/重構任務"
+title: "[Task] "
+labels: ["dev"]
+body:
+  - type: textarea
+    id: background
+    attributes:
+      label: 背景/問題
+      placeholder: "目前遇到什麼問題？為什麼要做？"
+    validations:
+      required: true
+  - type: textarea
+    id: requirements
+    attributes:
+      label: 需求/範圍
+      placeholder: "要做什麼？不做什麼？"
+    validations:
+      required: true
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: 完成定義（DoD）/驗收方式
+      placeholder: "- 什麼條件算完成\n- 如何測試"
+    validations:
+      required: true

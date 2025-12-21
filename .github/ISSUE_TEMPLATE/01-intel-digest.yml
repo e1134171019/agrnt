@@ -1,0 +1,29 @@
+﻿name: "Intel Digest"
+description: "彙整今日資訊來源並輸出 digest"
+title: "[Digest] YYYY-MM-DD"
+labels: ["intel", "digest"]
+body:
+  - type: input
+    id: date
+    attributes:
+      label: 日期（YYYY-MM-DD）
+      placeholder: "2025-12-21"
+    validations:
+      required: true
+  - type: textarea
+    id: sources
+    attributes:
+      label: 來源（留空代表用 ops/feeds.yml 全部）
+      placeholder: "- HF Daily Papers\n- GitHub releases.atom\n- GitHub Trending\n- Product Hunt"
+    validations:
+      required: false
+  - type: textarea
+    id: dod
+    attributes:
+      label: 完成定義（DoD）
+      value: |
+        - 產出 out/digest-YYYY-MM-DD.md
+        - 每個來源至少列出 Top 5
+        - 每條包含標題 + 連結
+    validations:
+      required: true

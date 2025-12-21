@@ -1,0 +1,32 @@
+# 基礎
+__pycache__/
+*.py[cod]
+*.egg-info/
+.DS_Store
+Thumbs.db
+
+# 虛擬環境
+.venv/
+.env/
+
+# Node.js 相關
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.npm/
+.yarn/
+dist/
+build/
+
+# 暫存與輸出
+cache/
+logs/
+*.log
+*.tmp
+report-*.md
+
+# VS Code
+.vscode/
+.history/
