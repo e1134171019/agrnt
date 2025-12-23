@@ -2,7 +2,8 @@
 # 所有 enabled=true 的來源都會被自動抓取
 
 sources:
-  - name: "Hacker News (RSS)"
+  - key: "hacker_news"
+    name: "Hacker News (RSS)"
     url: "https://news.ycombinator.com/rss"
     type: "rss"
     tags:
@@ -10,7 +11,8 @@ sources:
       - "engineering"
     enabled: true
 
-  - name: "GitHub Trending"
+  - key: "github_trending"
+    name: "GitHub Trending"
     url: "https://mshibanami.github.io/GitHubTrendingRSS/weekly/python.xml"
     type: "rss"
     tags:
@@ -18,7 +20,8 @@ sources:
       - "python"
     enabled: true
 
-  - name: "Dev.to"
+  - key: "devto"
+    name: "Dev.to"
     url: "https://dev.to/feed"
     type: "rss"
     tags:
@@ -26,7 +29,8 @@ sources:
       - "engineering"
     enabled: true
 
-  - name: "TechCrunch AI"
+  - key: "techcrunch_ai"
+    name: "TechCrunch AI"
     url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
     type: "rss"
     tags:

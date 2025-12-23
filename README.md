@@ -20,33 +20,36 @@ pip install -r requirements.txt
 
 ```yaml
 sources:
-  - name: "Hacker News"
+   - key: "hacker_news"
+      name: "Hacker News"
     url: "https://news.ycombinator.com/rss"
     type: "rss"
     tags: ["tech", "startup"]
     enabled: true
     
-  - name: "我的自訂 Feed"
+   - key: "custom"
+      name: "我的自訂 Feed"
     url: "https://example.com/feed.xml"  # 改成你的 RSS URL
     type: "rss"
     tags: ["custom"]
     enabled: true
 ```
 
-### 3️⃣ 執行摘要腳本（1 分鐘）
+### 3️⃣ 執行 Collector + Digest（2 分鐘）
 
 ```bash
-# 預覽模式（不寫檔案）
+# 先收集來源並輸出 JSON（可 dry-run 僅檢查統計）
+python ops/collector.py --dry-run
+python ops/collector.py --date 2025-12-22
+
+# 再由 JSON 產出 Markdown 摘要
 python ops/digest.py --dry-run
-
-# 實際產生摘要
-python ops/digest.py
-
-# 產生指定日期的摘要
-python ops/digest.py --date 2025-12-20
+python ops/digest.py --date 2025-12-22
 
 # 查看輸出
+cat out/raw-2025-12-22.json
 cat out/digest-2025-12-22.md
+cat logs/collector-2025-12-22.log
 cat logs/digest-2025-12-22.log
 ```
 
@@ -93,7 +96,8 @@ agrnt/
 ├── .gitignore         # Git 排除設定
 ├── ops/
 │   ├── feeds.yml      # RSS/Atom 資料來源設定
-│   └── digest.py      # 主要執行腳本
+│   ├── collector.py   # 抓取來源並輸出 JSON
+│   └── digest.py      # 讀 JSON 產 Markdown
 ├── out/               # 輸出目錄（自動建立）
 │   └── digest-*.md
 ├── logs/              # 日誌目錄（自動建立）
@@ -107,11 +111,26 @@ agrnt/
         └── daily-intel-issue.yml  # 每日自動開 Issue
 ```
 
+   ## 🧱 Collector → Digest 資料流程
+
+   1. `ops/collector.py` 讀取 `ops/feeds.yml`，逐一抓取啟用的來源並去重，最後輸出 `out/raw-YYYY-MM-DD.json`。
+   2. 每筆 JSON entry 至少包含：
+      - `source_key`：對應 feeds.yml 的 key
+      - `source`：來源名稱
+      - `title`、`url`
+      - `summary_raw`：完整摘要文字
+      - `published_at`：來源提供的時間
+      - `fetched_at`：collector 抓取時間（UTC）
+      - `tags`：feeds.yml 所定義的標籤
+   3. `ops/digest.py` 單純讀 JSON 並輸出 Markdown，過程中完全不再觸網，方便重跑/除錯。
+
+   若 Digest 失敗，只需保留 JSON 即可再次嘗試，不用重抓所有來源。
+
 ## 🔧 進階設定
 
 ### 自動排程
 
-`.github/workflows/daily-intel-issue.yml` 會在每天 **09:00 (Asia/Taipei)** 自動開 Issue。
+`.github/workflows/daily-intel-issue.yml` 會在每天 **09:00 (Asia/Taipei)** 自動執行 Collector → Digest，並用 `peter-evans/create-issue-from-file` 將 Markdown 發佈成 Issue。
 
 要修改時間，編輯 cron 表達式：
 ```yaml

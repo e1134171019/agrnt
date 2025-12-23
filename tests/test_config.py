@@ -9,7 +9,7 @@ import yaml
 # 將 ops/ 加入路徑
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ops"))
 
-from digest import load_config
+from collector import load_config
 
 
 class TestLoadConfig:
@@ -74,6 +74,7 @@ class TestLoadConfig:
         invalid_config = {
             "sources": [
                 {
+                    "key": "invalid",
                     "name": "Test",
                     "url": "https://example.com/feed.xml",
                     "type": "invalid_type"  # 應該是 rss 或 atom
@@ -93,6 +94,7 @@ class TestLoadConfig:
         config_with_optional = {
             "sources": [
                 {
+                    "key": "with_optional",
                     "name": "Test",
                     "url": "https://example.com/feed.xml",
                     "type": "rss",
@@ -108,6 +110,32 @@ class TestLoadConfig:
         
         assert config["sources"][0]["tags"] == ["tag1", "tag2"]
         assert config["sources"][0]["enabled"] is True
+
+    def test_load_config_duplicate_keys(self, temp_dir: pathlib.Path):
+        """測試 key 重複時應退出。"""
+        dup_config = {
+            "sources": [
+                {
+                    "key": "dup",
+                    "name": "Test",
+                    "url": "https://example.com/feed.xml",
+                    "type": "rss",
+                },
+                {
+                    "key": "dup",
+                    "name": "Test 2",
+                    "url": "https://example.com/feed2.xml",
+                    "type": "atom",
+                },
+            ]
+        }
+        yml_path = temp_dir / "dup.yml"
+        yml_path.write_text(yaml.dump(dup_config), encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc_info:
+            load_config(yml_path)
+
+        assert exc_info.value.code == 1
 
     def test_load_config_empty_sources(self, temp_dir: pathlib.Path):
         """測試空的 sources 列表（不應退出）。"""

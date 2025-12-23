@@ -20,6 +20,7 @@ def sample_config() -> Dict[str, Any]:
     return {
         "sources": [
             {
+                "key": "source_1",
                 "name": "Test Source 1",
                 "url": "https://example.com/feed1.xml",
                 "type": "rss",
@@ -27,6 +28,7 @@ def sample_config() -> Dict[str, Any]:
                 "enabled": True,
             },
             {
+                "key": "source_2",
                 "name": "Test Source 2",
                 "url": "https://example.com/feed2.xml",
                 "type": "atom",
@@ -56,6 +58,7 @@ def sample_entries() -> list[Dict[str, Any]]:
             "published": "2025-12-22",
             "source": "Test Source",
             "tags": ["test"],
+            "source_key": "source_1",
         },
         {
             "title": "Article 2",
@@ -64,5 +67,33 @@ def sample_entries() -> list[Dict[str, Any]]:
             "published": "2025-12-21",
             "source": "Test Source",
             "tags": ["example"],
+            "source_key": "source_1",
+        },
+    ]
+
+
+@pytest.fixture
+def sample_payload_entries() -> list[Dict[str, Any]]:
+    """標準化後的 JSON entries。"""
+    return [
+        {
+            "source_key": "source_1",
+            "source": "Test Source",
+            "title": "Article 1",
+            "url": "https://example.com/1",
+            "summary_raw": "Summary 1",
+            "tags": ["test"],
+            "fetched_at": "2025-12-22T00:00:00+00:00",
+            "published_at": "2025-12-22",
+        },
+        {
+            "source_key": "source_1",
+            "source": "Test Source",
+            "title": "Article 2",
+            "url": "https://example.com/2",
+            "summary_raw": "Summary 2",
+            "tags": ["example"],
+            "fetched_at": "2025-12-22T00:00:00+00:00",
+            "published_at": "2025-12-21",
         },
     ]

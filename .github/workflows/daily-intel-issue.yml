@@ -7,33 +7,36 @@ on:
   workflow_dispatch:
 
 permissions:
+  contents: read
   issues: write
 
 jobs:
-  open-issue:
+  generate-and-publish:
     runs-on: ubuntu-latest
     steps:
-      - name: Create daily digest issue
-        uses: actions/github-script@v7
+      - uses: actions/checkout@v4
+
+      - name: Set digest date
+        id: meta
+        run: echo "date=$(TZ=Asia/Taipei date +%Y-%m-%d)" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          script: |
-            const today = new Date().toISOString().slice(0,10);
-            const title = `[Digest] ${today}`;
-            const body = [
-              "自動建立的每日 Digest 任務單。",
-              "",
-              "**DoD：**",
-              "- [ ] 產出 `out/digest-" + today + ".md`",
-              "- [ ] 每個來源至少 Top 5（標題 + 連結）",
-              "- [ ] Markdown 格式正確",
-              "",
-              "來源請參考 `ops/feeds.yml`"
-            ].join("\n");
-            
-            await github.rest.issues.create({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              title: title,
-              body: body,
-              labels: ["intel", "digest"]
-            });
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run collector
+        run: python ops/collector.py --date "${{ steps.meta.outputs.date }}"
+
+      - name: Run digest
+        run: python ops/digest.py --date "${{ steps.meta.outputs.date }}"
+
+      - name: Create daily digest issue
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "[Digest] ${{ steps.meta.outputs.date }}"
+          content-filepath: out/digest-${{ steps.meta.outputs.date }}.md
+          labels: intel,digest

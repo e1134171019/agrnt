@@ -1,4 +1,5 @@
 """測試 digest.py 的資料處理功能。"""
+import json
 import pathlib
 import sys
 from typing import Dict, Any
@@ -8,102 +9,55 @@ import pytest
 # 將 ops/ 加入路徑
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ops"))
 
-from digest import merge_entries, generate_markdown
+from digest import generate_markdown, load_entries
 
 
-class TestMergeEntries:
-    """測試 merge_entries 函式。"""
+class TestLoadEntries:
+    """測試 JSON 讀取行為。"""
 
-    def test_merge_empty_lists(self):
-        """測試合併空列表。"""
-        result = merge_entries([])
-        assert result == []
+    def test_load_entries_success(self, temp_dir: pathlib.Path, sample_payload_entries: list[Dict[str, Any]]):
+        path = temp_dir / "raw.json"
+        path.write_text(json.dumps(sample_payload_entries, ensure_ascii=False), encoding="utf-8")
 
-    def test_merge_single_source(self, sample_entries: list[Dict[str, Any]]):
-        """測試合併單一來源。"""
-        result = merge_entries([sample_entries])
-        
-        assert len(result) == 2
-        assert result[0]["title"] == "Article 1"
-        assert result[1]["title"] == "Article 2"
+        entries = load_entries(path)
 
-    def test_merge_multiple_sources(self, sample_entries: list[Dict[str, Any]]):
-        """測試合併多個來源。"""
-        source2 = [
-            {
-                "title": "Article 3",
-                "link": "https://example.com/3",
-                "summary": "Summary 3",
-                "published": "2025-12-20",
-                "source": "Another Source",
-                "tags": ["other"],
-            }
-        ]
-        
-        result = merge_entries([sample_entries, source2])
-        
-        assert len(result) == 3
-        assert result[2]["source"] == "Another Source"
+        assert len(entries) == 2
+        assert entries[0]["title"] == "Article 1"
 
-    def test_merge_removes_duplicates(self):
-        """測試去重功能（依 link）。"""
-        entries1 = [
-            {
-                "title": "Article 1",
-                "link": "https://example.com/same",
-                "summary": "Summary 1",
-                "published": "2025-12-22",
-                "source": "Source 1",
-                "tags": [],
-            }
-        ]
-        entries2 = [
-            {
-                "title": "Article 1 Duplicate",  # 標題不同但 link 相同
-                "link": "https://example.com/same",
-                "summary": "Summary 2",
-                "published": "2025-12-21",
-                "source": "Source 2",
-                "tags": [],
-            }
-        ]
-        
-        result = merge_entries([entries1, entries2])
-        
-        # 應該只保留第一個
-        assert len(result) == 1
-        assert result[0]["title"] == "Article 1"
-        assert result[0]["source"] == "Source 1"
+    def test_load_entries_missing_file(self, temp_dir: pathlib.Path):
+        path = temp_dir / "missing.json"
 
-    def test_merge_preserves_order(self):
-        """測試保留順序（先來先得）。"""
-        entries1 = [
-            {"title": "A", "link": "https://a.com", "summary": "", "published": "", "source": "S1", "tags": []},
-            {"title": "B", "link": "https://b.com", "summary": "", "published": "", "source": "S1", "tags": []},
-        ]
-        entries2 = [
-            {"title": "C", "link": "https://c.com", "summary": "", "published": "", "source": "S2", "tags": []},
-        ]
-        
-        result = merge_entries([entries1, entries2])
-        
-        assert len(result) == 3
-        assert result[0]["title"] == "A"
-        assert result[1]["title"] == "B"
-        assert result[2]["title"] == "C"
+        with pytest.raises(SystemExit) as exc_info:
+            load_entries(path)
 
-    def test_merge_empty_link_not_filtered(self):
-        """測試空 link 的 entry 會被跳過。"""
-        entries = [
-            {"title": "No Link", "link": "", "summary": "", "published": "", "source": "S1", "tags": []},
-            {"title": "Has Link", "link": "https://example.com", "summary": "", "published": "", "source": "S1", "tags": []},
-        ]
-        
-        result = merge_entries([entries])
-        
-        # 空 link 被過濾
-        assert len(result) == 1
-        assert result[0]["title"] == "Has Link"
+        assert exc_info.value.code == 1
+
+    def test_load_entries_invalid_json(self, temp_dir: pathlib.Path):
+        path = temp_dir / "invalid.json"
+        path.write_text("not json", encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc_info:
+            load_entries(path)
+
+        assert exc_info.value.code == 1
+
+    def test_load_entries_not_list(self, temp_dir: pathlib.Path):
+        path = temp_dir / "invalid.json"
+        path.write_text(json.dumps({"foo": "bar"}), encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc_info:
+            load_entries(path)
+
+        assert exc_info.value.code == 1
+
+    def test_load_entries_missing_fields(self, temp_dir: pathlib.Path):
+        path = temp_dir / "invalid.json"
+        path.write_text(json.dumps([{"title": "Only"}]), encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc_info:
+            load_entries(path)
+
+        assert exc_info.value.code == 1
 
 
 class TestGenerateMarkdown:
@@ -121,9 +75,9 @@ class TestGenerateMarkdown:
         entries = [
             {
                 "title": "Test Article",
-                "link": "https://example.com/test",
-                "summary": "This is a test summary.",
-                "published": "2025-12-22 10:00",
+                "url": "https://example.com/test",
+                "summary_raw": "This is a test summary.",
+                "published_at": "2025-12-22 10:00",
                 "source": "Test Source",
                 "tags": ["test", "example"],
             }
@@ -140,14 +94,14 @@ class TestGenerateMarkdown:
         assert "**標籤**：#test #example" in markdown
         assert "---" in markdown
 
-    def test_generate_multiple_sources(self, sample_entries: list[Dict[str, Any]]):
+    def test_generate_multiple_sources(self, sample_payload_entries: list[Dict[str, Any]]):
         """測試多個來源分組。"""
-        entries = sample_entries + [
+        entries = sample_payload_entries + [
             {
                 "title": "Article 3",
-                "link": "https://example.com/3",
-                "summary": "Summary 3",
-                "published": "2025-12-20",
+                "url": "https://example.com/3",
+                "summary_raw": "Summary 3",
+                "published_at": "2025-12-20",
                 "source": "Another Source",  # 不同來源
                 "tags": [],
             }
@@ -168,9 +122,9 @@ class TestGenerateMarkdown:
         entries = [
             {
                 "title": "Long Summary",
-                "link": "https://example.com/long",
-                "summary": long_summary,
-                "published": "2025-12-22",
+                "url": "https://example.com/long",
+                "summary_raw": long_summary,
+                "published_at": "2025-12-22",
                 "source": "Test",
                 "tags": [],
             }
@@ -188,9 +142,9 @@ class TestGenerateMarkdown:
         entries = [
             {
                 "title": "No Tags",
-                "link": "https://example.com/notags",
-                "summary": "Summary",
-                "published": "2025-12-22",
+                "url": "https://example.com/notags",
+                "summary_raw": "Summary",
+                "published_at": "2025-12-22",
                 "source": "Test",
                 "tags": [],
             }
@@ -204,9 +158,9 @@ class TestGenerateMarkdown:
     def test_generate_sorted_by_source(self):
         """測試來源按字母排序。"""
         entries = [
-            {"title": "Z", "link": "https://z.com", "summary": "", "published": "", "source": "Z Source", "tags": []},
-            {"title": "A", "link": "https://a.com", "summary": "", "published": "", "source": "A Source", "tags": []},
-            {"title": "M", "link": "https://m.com", "summary": "", "published": "", "source": "M Source", "tags": []},
+            {"title": "Z", "url": "https://z.com", "summary_raw": "", "published_at": "", "source": "Z Source", "tags": []},
+            {"title": "A", "url": "https://a.com", "summary_raw": "", "published_at": "", "source": "A Source", "tags": []},
+            {"title": "M", "url": "https://m.com", "summary_raw": "", "published_at": "", "source": "M Source", "tags": []},
         ]
         
         markdown = generate_markdown(entries, "2025-12-22")
@@ -221,5 +175,5 @@ class TestGenerateMarkdown:
         """測試包含產生時間戳記。"""
         markdown = generate_markdown([], "2025-12-22")
         
-        # 時間戳記應該是當前時間
-        assert "*本摘要由自動化系統產生於 2025-12-22" in markdown
+        # 應包含時間戳記前綴
+        assert "*本摘要由自動化系統產生於 " in markdown

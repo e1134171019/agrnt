@@ -1,218 +1,46 @@
-"""根據 feeds.yml 抓取最新資訊並輸出 Markdown Digest。
-
-使用方式：
-    python ops/digest.py                     # 產生今天的摘要
-    python ops/digest.py --date 2025-12-20  # 產生指定日期
-    python ops/digest.py --dry-run          # 預覽模式
-    python ops/digest.py --verbose          # 詳細日誌
-"""
+﻿"""從 collector 產出的 JSON 生成 Markdown 摘要。"""
 from __future__ import annotations
 
 import argparse
 import datetime as dt
+import json
 import logging
 import pathlib
 import sys
 from typing import Any, Dict, List
 
-try:
-    import feedparser
-except ImportError as exc:
-    raise SystemExit("請先安裝 feedparser：pip install feedparser") from exc
-
-try:
-    import requests
-except ImportError as exc:
-    raise SystemExit("請先安裝 requests：pip install requests") from exc
-
-try:
-    import yaml
-except ImportError as exc:
-    raise SystemExit("請先安裝 PyYAML：pip install pyyaml") from exc
-
-# 常數定義
 ROOT = pathlib.Path(__file__).resolve().parents[1]
-FEEDS_PATH = ROOT / "ops" / "feeds.yml"
 OUT_DIR = ROOT / "out"
 LOGS_DIR = ROOT / "logs"
-REQUEST_TIMEOUT = 30  # 秒
-MAX_RETRIES = 3
-RETRY_DELAY = 2  # 秒
-
+RAW_PREFIX = "raw"
 LOGGER = logging.getLogger("digest")
 
 
 def setup_logging(verbose: bool = False, log_file: pathlib.Path | None = None) -> None:
-    """設定日誌輸出。"""
     level = logging.DEBUG if verbose else logging.INFO
-    
-    # Console handler
     console_handler = logging.StreamHandler(sys.stdout)
     console_handler.setLevel(level)
-    console_formatter = logging.Formatter(
-        "%(asctime)s | %(levelname)s | %(message)s",
-        datefmt="%H:%M:%S"
+    console_handler.setFormatter(
+        logging.Formatter("%(asctime)s | %(levelname)s | %(message)s", datefmt="%H:%M:%S")
     )
-    console_handler.setFormatter(console_formatter)
-    
-    # File handler
+
     handlers = [console_handler]
     if log_file:
         log_file.parent.mkdir(parents=True, exist_ok=True)
         file_handler = logging.FileHandler(log_file, encoding="utf-8")
-        file_handler.setLevel(logging.DEBUG)  # 檔案永遠記錄 DEBUG
-        file_formatter = logging.Formatter(
-            "%(asctime)s | %(levelname)s | %(message)s",
-            datefmt="%Y-%m-%d %H:%M:%S"
+        file_handler.setLevel(logging.DEBUG)
+        file_handler.setFormatter(
+            logging.Formatter(
+                "%(asctime)s | %(levelname)s | %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+            )
         )
-        file_handler.setFormatter(file_formatter)
         handlers.append(file_handler)
-    
+
     logging.basicConfig(level=level, handlers=handlers)
 
 
-def load_config(path: pathlib.Path) -> Dict[str, Any]:
-    """載入並驗證 feeds.yml 設定檔。"""
-    if not path.exists():
-        LOGGER.error(f"設定檔不存在：{path}")
-        sys.exit(1)
-    
-    try:
-        with path.open("r", encoding="utf-8") as f:
-            config = yaml.safe_load(f)
-    except yaml.YAMLError as e:
-        LOGGER.error(f"YAML 格式錯誤：{e}")
-        sys.exit(1)
-    
-    if not config or "sources" not in config:
-        LOGGER.error("設定檔缺少 'sources' 欄位")
-        sys.exit(1)
-    
-    # 驗證每個來源
-    for idx, source in enumerate(config["sources"]):
-        if not all(k in source for k in ["name", "url", "type"]):
-            LOGGER.error(f"來源 #{idx} 缺少必要欄位 (name/url/type)")
-            sys.exit(1)
-        if source["type"] not in ["rss", "atom"]:
-            LOGGER.error(f"來源 '{source['name']}' 的 type 必須是 'rss' 或 'atom'")
-            sys.exit(1)
-    
-    LOGGER.info(f"載入設定：{path}")
-    return config
-
-
-def fetch_feed(source: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """抓取並解析單一 RSS/Atom feed。"""
-    name = source["name"]
-    url = source["url"]
-    
-    LOGGER.info(f"抓取來源：{name}")
-    
-    for attempt in range(1, MAX_RETRIES + 1):
-        try:
-            response = requests.get(url, timeout=REQUEST_TIMEOUT)
-            response.raise_for_status()
-            
-            feed = feedparser.parse(response.content)
-            
-            if feed.bozo:
-                LOGGER.warning(f"{name} 解析時出現警告：{feed.bozo_exception}")
-            
-            entries = []
-            for entry in feed.entries[:50]:  # 最多 50 筆
-                entries.append({
-                    "title": entry.get("title", "無標題"),
-                    "link": entry.get("link", ""),
-                    "summary": entry.get("summary", entry.get("description", "")),
-                    "published": entry.get("published", entry.get("updated", "")),
-                    "source": name,
-                    "tags": source.get("tags", []),
-                })
-            
-            LOGGER.info(f"成功取得 {len(entries)} 筆資料")
-            return entries
-        
-        except requests.Timeout:
-            LOGGER.warning(f"{name} Timeout (嘗試 {attempt}/{MAX_RETRIES})")
-            if attempt < MAX_RETRIES:
-                import time
-                time.sleep(RETRY_DELAY)
-        except requests.RequestException as e:
-            LOGGER.warning(f"{name} 網路錯誤：{e} (嘗試 {attempt}/{MAX_RETRIES})")
-            if attempt < MAX_RETRIES:
-                import time
-                time.sleep(RETRY_DELAY)
-        except Exception as e:
-            LOGGER.error(f"{name} 未預期錯誤：{e}")
-            break
-    
-    LOGGER.warning(f"{name} 所有嘗試均失敗，跳過")
-    return []
-
-
-def merge_entries(all_entries: List[List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-    """合併所有來源並去重。"""
-    flat = [entry for entries in all_entries for entry in entries]
-    
-    # 去重（依 link）
-    seen = set()
-    unique = []
-    for entry in flat:
-        link = entry.get("link", "")
-        if link and link not in seen:
-            seen.add(link)
-            unique.append(entry)
-    
-    LOGGER.info(f"合併後共 {len(unique)} 筆（去重前 {len(flat)} 筆）")
-    return unique
-
-
-def generate_markdown(entries: List[Dict[str, Any]], date: str) -> str:
-    """產生 Markdown 格式摘要。"""
-    lines = [
-        f"# 技術資訊摘要 - {date}",
-        "",
-    ]
-    
-    # 按來源分組
-    by_source: Dict[str, List[Dict[str, Any]]] = {}
-    for entry in entries:
-        source = entry.get("source", "未知來源")
-        by_source.setdefault(source, []).append(entry)
-    
-    for source, items in sorted(by_source.items()):
-        lines.append(f"## {source}")
-        lines.append("")
-        
-        for item in items:
-            title = item.get("title", "無標題")
-            link = item.get("link", "")
-            summary = item.get("summary", "")[:200]  # 限制長度
-            published = item.get("published", "未知時間")
-            tags = " ".join(f"#{tag}" for tag in item.get("tags", []))
-            
-            lines.append(f"### [{title}]({link})")
-            lines.append(f"發布於：{published}")
-            lines.append("")
-            if summary:
-                lines.append(summary + "...")
-                lines.append("")
-            lines.append(f"**來源**：{source}")
-            if tags:
-                lines.append(f"**標籤**：{tags}")
-            lines.append("")
-            lines.append("---")
-            lines.append("")
-    
-    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
-    lines.append(f"*本摘要由自動化系統產生於 {now}*")
-    
-    return "\n".join(lines)
-
-
 def parse_args() -> argparse.Namespace:
-    """解析命令列參數。"""
-    parser = argparse.ArgumentParser(description="產生技術資訊摘要")
+    parser = argparse.ArgumentParser(description="讀取 JSON 並產出 Markdown 摘要")
     parser.add_argument(
         "--date",
         type=str,
@@ -220,79 +48,129 @@ def parse_args() -> argparse.Namespace:
         help="指定日期 (YYYY-MM-DD)",
     )
     parser.add_argument(
+        "--input",
+        type=pathlib.Path,
+        help="自訂 JSON 輸入路徑（預設：out/raw-{date}.json）",
+    )
+    parser.add_argument(
         "--output",
         type=pathlib.Path,
-        help="輸出檔案路徑（預設：out/digest-{date}.md）",
+        help="自訂輸出 Markdown（預設：out/digest-{date}.md）",
     )
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="僅顯示預覽，不寫入檔案",
+        help="僅顯示結果不寫檔",
     )
     parser.add_argument(
         "--verbose",
         "-v",
         action="store_true",
-        help="詳細日誌輸出",
+        help="顯示 DEBUG 級別日誌",
     )
     return parser.parse_args()
 
 
+def load_entries(path: pathlib.Path) -> List[Dict[str, Any]]:
+    if not path.exists():
+        LOGGER.error(f"找不到 JSON 檔案：{path}")
+        sys.exit(1)
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        LOGGER.error(f"JSON 解析失敗：{exc}")
+        sys.exit(1)
+
+    if not isinstance(data, list):
+        LOGGER.error("JSON 格式錯誤，預期為列表")
+        sys.exit(1)
+
+    required = {"source", "title", "url", "summary_raw", "published_at"}
+    for idx, entry in enumerate(data):
+        if not isinstance(entry, dict):
+            LOGGER.error(f"第 {idx} 筆資料格式錯誤（預期為物件）")
+            sys.exit(1)
+        missing = required - entry.keys()
+        if missing:
+            LOGGER.error(f"第 {idx} 筆資料缺少欄位：{', '.join(sorted(missing))}")
+            sys.exit(1)
+
+    return data
+
+
+def generate_markdown(entries: List[Dict[str, Any]], date: str) -> str:
+    lines = [f"# 技術資訊摘要 - {date}", ""]
+
+    by_source: Dict[str, List[Dict[str, Any]]] = {}
+    for entry in entries:
+        by_source.setdefault(entry.get("source", "未知來源"), []).append(entry)
+
+    for source in sorted(by_source):
+        lines.append(f"## {source}")
+        lines.append("")
+
+        for item in by_source[source]:
+            title = item.get("title", "無標題")
+            url = item.get("url", "")
+            summary_full = item.get("summary_raw", "")
+            summary = summary_full[:200]
+            published = item.get("published_at", "未知時間")
+            tags = " ".join(f"#{tag}" for tag in item.get("tags", []))
+
+            lines.append(f"### [{title}]({url})" if url else f"### {title}")
+            lines.append(f"發布於：{published}")
+            lines.append("")
+            if summary:
+                suffix = "..." if len(summary_full) > 200 else ""
+                lines.append(summary + suffix)
+                lines.append("")
+            lines.append(f"**來源**：{source}")
+            if tags:
+                lines.append(f"**標籤**：{tags}")
+            lines.append("")
+            lines.append("---")
+            lines.append("")
+
+    now = dt.datetime.now().strftime("%Y-%m-%d %H:%M")
+    lines.append(f"*本摘要由自動化系統產生於 {now}*")
+    return "\n".join(lines)
+
+
 def main() -> None:
-    """主程式。"""
     args = parse_args()
-    
-    # 設定日誌
-    log_file = LOGS_DIR / f"digest-{args.date}.log" if not args.dry_run else None
+    log_file = LOGS_DIR / f"digest-{args.date}.log"
     setup_logging(verbose=args.verbose, log_file=log_file)
-    
+
     LOGGER.info("=" * 50)
-    LOGGER.info("開始執行 digest")
+    LOGGER.info("開始產出 digest")
     LOGGER.info(f"日期：{args.date}")
     LOGGER.info("=" * 50)
-    
-    # 載入設定
-    config = load_config(FEEDS_PATH)
-    sources = [s for s in config["sources"] if s.get("enabled", True)]
-    
-    if not sources:
-        LOGGER.error("沒有啟用的資料來源")
+
+    input_path = args.input or OUT_DIR / f"{RAW_PREFIX}-{args.date}.json"
+    entries = load_entries(input_path)
+    if not entries:
+        LOGGER.error("JSON 沒有資料，無法產出摘要")
         sys.exit(2)
-    
-    # 抓取所有來源
-    all_entries = []
-    for source in sources:
-        entries = fetch_feed(source)
-        if entries:
-            all_entries.append(entries)
-    
-    if not all_entries:
-        LOGGER.error("所有來源都失敗")
-        sys.exit(2)
-    
-    # 合併並產生 Markdown
-    merged = merge_entries(all_entries)
-    markdown = generate_markdown(merged, args.date)
-    
-    # 輸出
+
+    markdown = generate_markdown(entries, args.date)
+
     if args.dry_run:
-        print("\n" + "=" * 50)
-        print("預覽模式（不寫入檔案）")
-        print("=" * 50 + "\n")
-        # 使用 UTF-8 編碼輸出避免 Windows 終端機編碼問題
-        sys.stdout.reconfigure(encoding='utf-8')
+        LOGGER.info("Dry-run 模式，輸出預覽在 stdout")
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
         print(markdown)
     else:
         output_path = args.output or OUT_DIR / f"digest-{args.date}.md"
         try:
             output_path.parent.mkdir(parents=True, exist_ok=True)
             output_path.write_text(markdown, encoding="utf-8")
-            LOGGER.info(f"產生摘要：{output_path}")
-        except OSError as e:
-            LOGGER.error(f"寫入檔案失敗：{e}")
+            LOGGER.info(f"產出摘要：{output_path}")
+        except OSError as exc:
+            LOGGER.error(f"寫入檔案失敗：{exc}")
             sys.exit(3)
-    
-    LOGGER.info("執行完成")
+
+    LOGGER.info("digest 執行完成")
 
 
 if __name__ == "__main__":

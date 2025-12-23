@@ -10,16 +10,19 @@
 - 從 `ops/feeds.yml` 定義的來源抓取最新資訊
 - 過濾低質量或重複內容
 - 將資料標準化後存入暫存區
+- 確保每筆 entry 包含 `source_key`、`source`、`title`、`url`、`summary_raw`、`published_at`、`fetched_at`、`tags`
 
 **執行時機**：每日凌晨 2:00 (UTC+8，GitHub Actions 觸發)
 
-**輸出格式**：JSON 格式，包含 `title`、`url`、`summary`、`timestamp`、`source`
+**輸出格式**：`out/raw-YYYY-MM-DD.json`，僅 JSON（無 Markdown）。
+
+**工具腳本**：`python ops/collector.py [--date YYYY-MM-DD] [--dry-run]`
 
 **輸出位置**：`out/raw-YYYY-MM-DD.json`
 
 ### 2. Digest Generator Agent
 **職責**：
-- 讀取 Content Collector 的輸出
+- 讀取 Content Collector 的 JSON 輸出
 - 使用 AI 模型產生繁體中文摘要
 - 自動建立 GitHub Issue 發布摘要
 
@@ -28,6 +31,7 @@
 **輸出位置**：
 - Markdown 檔案：`out/digest-YYYY-MM-DD.md`
 - GitHub Issues（使用 `01-intel-digest.yml` 模板）
+- **工具腳本**：`python ops/digest.py [--input out/raw-YYYY-MM-DD.json]`
 
 ## 程式碼規範
 
@@ -104,6 +108,7 @@ Closes #12
 - [ ] logs/ 無錯誤訊息
 
 ### Intel Digest 任務
+- [ ] `ops/collector.py` 成功執行並輸出 `out/raw-YYYY-MM-DD.json`
 - [ ] `ops/digest.py` 成功執行
 - [ ] 產生 `out/digest-YYYY-MM-DD.md`
 - [ ] Markdown 格式正確
@@ -119,6 +124,7 @@ Closes #12
 code ops/feeds.yml
 
 # 2. 測試抓取
+python ops/collector.py --dry-run
 python ops/digest.py --dry-run
 
 # 3. 提交 PR
