@@ -9,6 +9,7 @@ import os
 import pathlib
 import sys
 import time
+from collections import Counter
 from typing import Any, Dict, List
 
 try:
@@ -84,7 +85,11 @@ def load_config(path: pathlib.Path) -> Dict[str, Any]:
 
     seen_keys: set[str] = set()
     for idx, source in enumerate(config["sources"]):
-        missing = [field for field in ("key", "name", "url", "type") if field not in source]
+        missing = [
+            field
+            for field in ("key", "name", "url", "type", "category")
+            if field not in source
+        ]
         if missing:
             LOGGER.error(f"來源 #{idx} 缺少必要欄位：{', '.join(missing)}")
             sys.exit(1)
@@ -129,6 +134,7 @@ def fetch_rss_or_atom(source: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "source": name,
                         "source_key": source.get("key", "unknown"),
                         "tags": source.get("tags", []),
+                        "category": source.get("category", "未分類"),
                     }
                 )
 
@@ -219,6 +225,7 @@ def fetch_producthunt(source: Dict[str, Any]) -> List[Dict[str, Any]]:
                         "source": name,
                         "source_key": source.get("key", "producthunt"),
                         "tags": list(dict.fromkeys(source.get("tags", []) + topics)),
+                        "category": source.get("category", "未分類"),
                     }
                 )
 
@@ -282,6 +289,7 @@ def build_payload(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
                 "url": entry.get("link", ""),
                 "summary_raw": entry.get("summary", ""),
                 "tags": entry.get("tags", []),
+                "category": entry.get("category", "未分類"),
                 "fetched_at": fetched_at,
                 "published_at": entry.get("published", ""),
             }
@@ -290,10 +298,10 @@ def build_payload(entries: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
     return payload
 
 
-def write_payload(payload: List[Dict[str, Any]], path: pathlib.Path) -> None:
-    """Persist payload as UTF-8 JSON."""
+def write_payload(document: Dict[str, Any], path: pathlib.Path) -> None:
+    """Persist payload與品質指標為 UTF-8 JSON。"""
     path.parent.mkdir(parents=True, exist_ok=True)
-    text = json.dumps(payload, ensure_ascii=False, indent=2)
+    text = json.dumps(document, ensure_ascii=False, indent=2)
     path.write_text(text, encoding="utf-8")
     LOGGER.info(f"產出原始資料：{path}")
 
@@ -342,11 +350,21 @@ def main() -> None:
         sys.exit(2)
 
     collected: List[List[Dict[str, Any]]] = []
+    failed_sources: List[Dict[str, str]] = []
+    raw_entries_count = 0
 
     for source in sources:
         entries = fetch_source(source)
         if entries:
             collected.append(entries)
+            raw_entries_count += len(entries)
+        else:
+            failed_sources.append(
+                {
+                    "key": source.get("key", "unknown"),
+                    "name": source.get("name", "未知來源"),
+                }
+            )
 
     if not collected:
         LOGGER.error("所有來源都失敗")
@@ -354,14 +372,36 @@ def main() -> None:
 
     merged = merge_entries(collected)
     payload = build_payload(merged)
+    unique_entries = len(payload)
+    dedup_rate = 0.0 if raw_entries_count == 0 else (raw_entries_count - unique_entries) / raw_entries_count
+    category_counts = Counter(entry.get("category", "未分類") or "未分類" for entry in payload)
+    meta: Dict[str, Any] = {
+        "generated_at": dt.datetime.now(dt.timezone.utc).isoformat(),
+        "raw_entries": raw_entries_count,
+        "unique_entries": unique_entries,
+        "dedup_rate": round(dedup_rate, 4),
+        "total_sources": len(sources),
+        "succeeded_sources": len(sources) - len(failed_sources),
+        "failed_source_count": len(failed_sources),
+        "failed_sources": failed_sources,
+        "category_counts": dict(sorted(category_counts.items())),
+    }
+    document = {"meta": meta, "entries": payload}
 
     if args.dry_run:
-        LOGGER.info(f"Dry-run 模式，預計輸出 {len(payload)} 筆資料")
-        LOGGER.debug(json.dumps(payload[:3], ensure_ascii=False, indent=2))
+        LOGGER.info(
+            "Dry-run 模式，預計輸出 %s 筆資料（去重率 %.2f%%）",
+            unique_entries,
+            meta["dedup_rate"] * 100,
+        )
+        if meta["category_counts"]:
+            summary = ", ".join(f"{cat}={count}" for cat, count in meta["category_counts"].items())
+            LOGGER.info("分類統計：%s", summary)
+        LOGGER.debug(json.dumps({"meta": meta, "entries": payload[:3]}, ensure_ascii=False, indent=2))
     else:
         output_path = args.output or OUT_DIR / f"raw-{args.date}.json"
         try:
-            write_payload(payload, output_path)
+            write_payload(document, output_path)
         except OSError as exc:
             LOGGER.error(f"寫入檔案失敗：{exc}")
             sys.exit(3)

@@ -21,12 +21,14 @@ class TestLoadEntries:
 
     def test_load_entries_success(self, temp_dir: pathlib.Path, sample_payload_entries: list[Dict[str, Any]]):
         path = temp_dir / "raw.json"
-        path.write_text(json.dumps(sample_payload_entries, ensure_ascii=False), encoding="utf-8")
+        content = {"meta": {"note": "ok"}, "entries": sample_payload_entries}
+        path.write_text(json.dumps(content, ensure_ascii=False), encoding="utf-8")
 
-        entries = load_entries(path)
+        entries, meta = load_entries(path)
 
         assert len(entries) == 2
         assert entries[0]["title"] == "Article 1"
+        assert meta == {"note": "ok"}
 
     def test_load_entries_missing_file(self, temp_dir: pathlib.Path):
         path = temp_dir / "missing.json"
@@ -54,9 +56,27 @@ class TestLoadEntries:
 
         assert exc_info.value.code == 1
 
+    def test_load_entries_entries_not_list(self, temp_dir: pathlib.Path):
+        path = temp_dir / "invalid_entries.json"
+        path.write_text(json.dumps({"entries": 123}, ensure_ascii=False), encoding="utf-8")
+
+        with pytest.raises(SystemExit) as exc_info:
+            load_entries(path)
+
+        assert exc_info.value.code == 1
+
+    def test_load_entries_supports_legacy_list(self, temp_dir: pathlib.Path, sample_payload_entries: list[Dict[str, Any]]):
+        path = temp_dir / "legacy.json"
+        path.write_text(json.dumps(sample_payload_entries, ensure_ascii=False), encoding="utf-8")
+
+        entries, meta = load_entries(path)
+
+        assert len(entries) == 2
+        assert meta == {}
+
     def test_load_entries_missing_fields(self, temp_dir: pathlib.Path):
         path = temp_dir / "invalid.json"
-        path.write_text(json.dumps([{"title": "Only"}]), encoding="utf-8")
+        path.write_text(json.dumps({"entries": [{"title": "Only"}]}), encoding="utf-8")
 
         with pytest.raises(SystemExit) as exc_info:
             load_entries(path)
@@ -74,6 +94,36 @@ class TestGenerateMarkdown:
         assert "# 技術資訊摘要 - 2025-12-22" in markdown
         assert "*本摘要由自動化系統產生於" in markdown
 
+    def test_generate_includes_metrics_section(self):
+        entries = [
+            {
+                "title": "Metric Article",
+                "url": "https://example.com/metric",
+                "summary_raw": "Summary",
+                "published_at": "2025-12-22",
+                "source": "Metric Source",
+                "tags": [],
+                "category": "news",
+            }
+        ]
+        meta = {
+            "raw_entries": 2,
+            "unique_entries": 1,
+            "dedup_rate": 0.5,
+            "total_sources": 4,
+            "failed_source_count": 1,
+            "failed_sources": [{"name": "Source X"}],
+            "category_counts": {"news": 1, "community": 3},
+        }
+
+        markdown = generate_markdown(entries, "2025-12-22", meta)
+
+        assert "## 摘要指標" in markdown
+        assert "去重率" in markdown
+        assert "分類統計" in markdown
+        assert "來源健康度" in markdown
+        assert "失敗來源" in markdown
+
     def test_generate_single_entry(self):
         """測試單一 entry。"""
         entries = [
@@ -84,13 +134,15 @@ class TestGenerateMarkdown:
                 "published_at": "2025-12-22 10:00",
                 "source": "Test Source",
                 "tags": ["test", "example"],
+                "category": "news",
             }
         ]
         
         markdown = generate_markdown(entries, "2025-12-22")
         
         assert "# 技術資訊摘要 - 2025-12-22" in markdown
-        assert "## Test Source" in markdown
+        assert "## news" in markdown
+        assert "### Test Source" in markdown
         assert "[Test Article](https://example.com/test)" in markdown
         assert "發布於：2025-12-22 10:00" in markdown
         assert "This is a test summary." in markdown
@@ -108,14 +160,17 @@ class TestGenerateMarkdown:
                 "published_at": "2025-12-20",
                 "source": "Another Source",  # 不同來源
                 "tags": [],
+                "category": "news",
             }
         ]
         
         markdown = generate_markdown(entries, "2025-12-22")
         
-        # 檢查來源標題存在（Markdown 中可能有其他 ## 符號）
-        assert "## Another Source" in markdown
-        assert "## Test Source" in markdown
+        # 檢查分類與來源標題存在
+        assert "## community" in markdown
+        assert "## news" in markdown
+        assert "### Another Source" in markdown
+        assert "### Test Source" in markdown
         # 檢查兩個來源的文章都存在
         assert "[Article 1]" in markdown
         assert "[Article 3]" in markdown
@@ -131,6 +186,7 @@ class TestGenerateMarkdown:
                 "published_at": "2025-12-22",
                 "source": "Test",
                 "tags": [],
+                "category": "insight",
             }
         ]
         
@@ -151,6 +207,7 @@ class TestGenerateMarkdown:
                 "published_at": "2025-12-22",
                 "source": "Test",
                 "tags": [],
+                "category": "misc",
             }
         ]
         
@@ -162,18 +219,47 @@ class TestGenerateMarkdown:
     def test_generate_sorted_by_source(self):
         """測試來源按字母排序。"""
         entries = [
-            {"title": "Z", "url": "https://z.com", "summary_raw": "", "published_at": "", "source": "Z Source", "tags": []},
-            {"title": "A", "url": "https://a.com", "summary_raw": "", "published_at": "", "source": "A Source", "tags": []},
-            {"title": "M", "url": "https://m.com", "summary_raw": "", "published_at": "", "source": "M Source", "tags": []},
+            {
+                "title": "Z",
+                "url": "https://z.com",
+                "summary_raw": "",
+                "published_at": "",
+                "source": "Z Source",
+                "tags": [],
+                "category": "beta",
+            },
+            {
+                "title": "A",
+                "url": "https://a.com",
+                "summary_raw": "",
+                "published_at": "",
+                "source": "A Source",
+                "tags": [],
+                "category": "alpha",
+            },
+            {
+                "title": "M",
+                "url": "https://m.com",
+                "summary_raw": "",
+                "published_at": "",
+                "source": "M Source",
+                "tags": [],
+                "category": "alpha",
+            },
         ]
         
         markdown = generate_markdown(entries, "2025-12-22")
         
-        # 來源應該按字母排序
+        # 分類與來源應該各自排序
         lines = markdown.split("\n")
-        sources = [line for line in lines if line.startswith("## ")]
-        
-        assert sources == ["## A Source", "## M Source", "## Z Source"]
+        categories = [line for line in lines if line.startswith("## ")]
+        assert categories[:2] == ["## alpha", "## beta"]
+
+        alpha_start = lines.index("## alpha")
+        beta_start = lines.index("## beta")
+        alpha_block = lines[alpha_start:beta_start]
+        sources = [line for line in alpha_block if line.startswith("### ")]
+        assert sources == ["### A Source", "### M Source"]
 
     def test_generate_includes_timestamp(self):
         """測試包含產生時間戳記。"""
@@ -295,10 +381,11 @@ class TestMainFlow:
                 "published_at": "2025-12-25",
                 "source": "Main Source",
                 "tags": [],
+                "category": "daily",
             }
         ]
-        monkeypatch.setattr(digest, "load_entries", lambda path: entries)
-        monkeypatch.setattr(digest, "generate_markdown", lambda _entries, _date: "MARKDOWN")
+        monkeypatch.setattr(digest, "load_entries", lambda path: (entries, {"meta": True}))
+        monkeypatch.setattr(digest, "generate_markdown", lambda _entries, _date, _meta: "MARKDOWN")
 
         digest.main()
 
@@ -334,9 +421,10 @@ class TestMainFlow:
                 "published_at": "2025-12-24",
                 "source": "Dry Source",
                 "tags": [],
+                "category": "daily",
             }
         ]
-        monkeypatch.setattr(digest, "load_entries", lambda path: entries)
+        monkeypatch.setattr(digest, "load_entries", lambda path: (entries, {}))
         monkeypatch.setattr(digest, "generate_markdown", lambda *_: "DRY")
 
         digest.main()
@@ -362,7 +450,7 @@ class TestMainFlow:
             verbose=False,
         )
         monkeypatch.setattr(digest, "parse_args", lambda: args)
-        monkeypatch.setattr(digest, "load_entries", lambda path: [])
+        monkeypatch.setattr(digest, "load_entries", lambda path: ([], {}))
 
         with pytest.raises(SystemExit) as exc_info:
             digest.main()

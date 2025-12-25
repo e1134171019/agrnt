@@ -25,6 +25,7 @@ def sample_config() -> Dict[str, Any]:
                 "url": "https://example.com/feed1.xml",
                 "type": "rss",
                 "tags": ["test", "example"],
+                "category": "community",
                 "enabled": True,
             },
             {
@@ -33,6 +34,7 @@ def sample_config() -> Dict[str, Any]:
                 "url": "https://example.com/feed2.xml",
                 "type": "atom",
                 "tags": ["test"],
+                "category": "news",
                 "enabled": False,
             },
         ]
@@ -59,6 +61,7 @@ def sample_entries() -> list[Dict[str, Any]]:
             "source": "Test Source",
             "tags": ["test"],
             "source_key": "source_1",
+            "category": "community",
         },
         {
             "title": "Article 2",
@@ -68,6 +71,7 @@ def sample_entries() -> list[Dict[str, Any]]:
             "source": "Test Source",
             "tags": ["example"],
             "source_key": "source_1",
+            "category": "community",
         },
     ]
 
@@ -83,6 +87,7 @@ def sample_payload_entries() -> list[Dict[str, Any]]:
             "url": "https://example.com/1",
             "summary_raw": "Summary 1",
             "tags": ["test"],
+            "category": "community",
             "fetched_at": "2025-12-22T00:00:00+00:00",
             "published_at": "2025-12-22",
         },
@@ -93,6 +98,7 @@ def sample_payload_entries() -> list[Dict[str, Any]]:
             "url": "https://example.com/2",
             "summary_raw": "Summary 2",
             "tags": ["example"],
+            "category": "community",
             "fetched_at": "2025-12-22T00:00:00+00:00",
             "published_at": "2025-12-21",
         },

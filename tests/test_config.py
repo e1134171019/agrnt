@@ -77,7 +77,8 @@ class TestLoadConfig:
                     "key": "invalid",
                     "name": "Test",
                     "url": "https://example.com/feed.xml",
-                    "type": "invalid_type"  # 應該是 rss 或 atom
+                    "type": "invalid_type",  # 應該是 rss 或 atom
+                    "category": "news",
                 }
             ]
         }
@@ -98,6 +99,7 @@ class TestLoadConfig:
                     "name": "Test",
                     "url": "https://example.com/feed.xml",
                     "type": "rss",
+                    "category": "news",
                     "tags": ["tag1", "tag2"],
                     "enabled": True,
                 }
@@ -120,12 +122,14 @@ class TestLoadConfig:
                     "name": "Test",
                     "url": "https://example.com/feed.xml",
                     "type": "rss",
+                    "category": "news",
                 },
                 {
                     "key": "dup",
                     "name": "Test 2",
                     "url": "https://example.com/feed2.xml",
                     "type": "atom",
+                    "category": "news",
                 },
             ]
         }

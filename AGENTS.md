@@ -10,7 +10,8 @@
 - 從 `ops/feeds.yml` 定義的來源抓取最新資訊
 - 過濾低質量或重複內容
 - 將資料標準化後存入暫存區
-- 確保每筆 entry 包含 `source_key`、`source`、`title`、`url`、`summary_raw`、`published_at`、`fetched_at`、`tags`
+- 確保每筆 entry 包含 `source_key`、`source`、`category`、`title`、`url`、`summary_raw`、`published_at`、`fetched_at`、`tags`
+- 於 JSON `meta` 中輸出去重率、分類統計、失敗來源等內容品質指標
 
 **執行時機**：每日凌晨 2:00 (UTC+8，GitHub Actions 觸發)
 
@@ -112,7 +113,8 @@ Closes #12
 - [ ] `ops/digest.py` 成功執行
 - [ ] 產生 `out/digest-YYYY-MM-DD.md`
 - [ ] Markdown 格式正確
-- [ ] 來源標註完整
+- [ ] 分類與來源標註完整
+- [ ] 摘要指標（去重率 / 分類統計 / 失敗來源）呈現在 Markdown 中
 - [ ] 已建立對應 GitHub Issue
 - [ ] Issue 使用正確模板
 

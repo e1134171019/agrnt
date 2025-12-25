@@ -24,6 +24,7 @@ sources:
       name: "Hacker News"
       url: "https://news.ycombinator.com/rss"
       type: "rss"
+      category: "community"
       tags:
          - "tech"
          - "startup"
@@ -34,6 +35,7 @@ sources:
       name: "Product Hunt Daily"
       url: "https://api.producthunt.com/v2/api/graphql"
       type: "producthunt"
+      category: "product"
       tags:
          - "launch"
          - "startup"
@@ -41,7 +43,7 @@ sources:
       enabled: false  # 啟用前請先設定 PRODUCTHUNT_TOKEN
 ```
 
-> `type` 支援 `rss`、`atom` 與 `producthunt`。`limit` 可以限制每個來源最多抓幾篇文章，預設為 50。
+> `type` 支援 `rss`、`atom` 與 `producthunt`。`category` 決定 Digest 的分組（例如 `community`、`news`、`product`），`limit` 可以限制每個來源最多抓幾篇文章，預設為 50。
 
 ### 3️⃣ 執行 Collector + Digest（2 分鐘）
 
@@ -150,17 +152,21 @@ agrnt/                     # 專案根目錄
    ## 🧱 Collector → Digest 資料流程
 
    1. `ops/collector.py` 讀取 `ops/feeds.yml`，逐一抓取啟用的來源並去重，最後輸出 `out/raw-YYYY-MM-DD.json`。
-   2. 每筆 JSON entry 至少包含：
-      - `source_key`：對應 feeds.yml 的 key
-      - `source`：來源名稱
-      - `title`、`url`
-      - `summary_raw`：完整摘要文字
-      - `published_at`：來源提供的時間
-      - `fetched_at`：collector 抓取時間（UTC）
-      - `tags`：feeds.yml 所定義的標籤
-   3. `ops/digest.py` 單純讀 JSON 並輸出 Markdown，過程中完全不再觸網，方便重跑/除錯。
+   2. JSON 結構包含：
+      - `meta`：內容品質評估指標（`generated_at`、`raw_entries`、`unique_entries`、`dedup_rate`、`category_counts`、`failed_sources` 等）。
+      - `entries`：每筆標準化資料，欄位包含 `source_key`、`source`、`category`、`title`、`url`、`summary_raw`、`published_at`、`fetched_at`、`tags`。
+   3. `ops/digest.py` 單純讀 JSON 並輸出 Markdown，會在開頭加入「摘要指標」區塊（去重率、分類筆數、失敗來源）並依 `category`、來源排序分組，過程中完全不再觸網，方便重跑/除錯。
 
    若 Digest 失敗，只需保留 JSON 即可再次嘗試，不用重抓所有來源。
+
+### 內容品質評估指標
+
+Collector 會在 `meta` 中輸出以下指標，Digest 也會在「摘要指標」章節呈現：
+- **去重率 (`dedup_rate`)**：重複連結占原始筆數的比例，便於追蹤來源品質。
+- **分類統計 (`category_counts`)**：各 `category` 的每日產出筆數，觀察內容分布。
+- **來源健康度 (`failed_sources`)**：當日抓取失敗的來源清單與數量，快速定位異常來源。
+
+這些欄位可以直接由 JSON 推算，也方便後續接入監控或 PROJECT_ANALYSIS 報表。
 
 ## 🔧 進階設定
 

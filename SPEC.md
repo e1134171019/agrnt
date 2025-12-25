@@ -1,9 +1,9 @@
 # 專案技術規格（SPEC）
 
 ## 1. 核心功能
-- **多來源收集**：支援 RSS/Atom feeds，以 YAML 描述來源、標籤與啟用狀態。
+- **多來源收集**：支援 RSS/Atom feeds，以 YAML 描述來源、分類、標籤與啟用狀態。
 - **資料清理與標準化**：自動去重（依 link）、截斷摘要（200 字）、統一時間格式。
-- **Markdown 輸出**：產生結構化摘要，依來源分組，包含標題、連結、發布時間、標籤。
+- **Markdown 輸出**：產生結構化摘要，依 `category` → 來源分組，包含標題、連結、發布時間、標籤。
 - **自動發布**：Workflow 每日自動開 GitHub Issue，並預留 Hook 連結 Slack/Email。
 
 ## 2. 技術棧
@@ -35,6 +35,7 @@
          name: string             # 必填，來源名稱
          url: string              # 必填，RSS/Atom URL，Product Hunt 可填預設 API URL
          type: "rss" | "atom" | "producthunt"
+         category: string         # 必填，Digest 的顯示分類（如 community/news/product）
          tags: array<string>      # 選填，標籤列表
          limit: int               # 選填，單一來源最大筆數（預設 50，Product Hunt 預設 20）
          enabled: boolean         # 選填，預設 true
@@ -52,7 +53,9 @@
 4. **資料提取**：提取 title/link/summary/published，補上 `source_key`、`tags`。
 5. **去重合併**：依 link 去重。
 6. **產生 JSON**：
-   - 每筆包含 `source_key`、`source`、`title`、`url`、`summary_raw`、`published_at`、`fetched_at`、`tags`
+   - 輸出物件 `{ "meta": {...}, "entries": [...] }`
+   - `meta` 至少包含 `generated_at`、`raw_entries`、`unique_entries`、`dedup_rate`、`category_counts`、`failed_sources`
+   - `entries` 每筆包含 `source_key`、`source`、`category`、`title`、`url`、`summary_raw`、`published_at`、`fetched_at`、`tags`
    - `fetched_at` 使用 UTC ISO8601。
 
 ### 輸出
@@ -79,17 +82,30 @@
 
 ### 輸入
 - **資料來源**：`out/raw-YYYY-MM-DD.json`（Collector 產出，或 `--input` 指定檔案）。
-- **欄位要求**：每筆 JSON 至少包含 `source_key`、`source`、`title`、`url`、`summary_raw`、`published_at`、`tags`，可選 `fetched_at` 供追蹤抓取時間。
+- **欄位要求**：`entries` 列表中的每筆 JSON 至少包含 `source_key`、`source`、`category`、`title`、`url`、`summary_raw`、`published_at`、`tags`，可選 `fetched_at` 供追蹤抓取時間；同時 `meta` 提供內容品質指標供 Digest 與報表使用。
    ```json
    {
-      "source_key": "producthunt_daily",
-      "source": "Product Hunt Daily",
-      "title": "Cool Tool",
-      "url": "https://example.com",
-      "summary_raw": "完整摘要內容",
-      "published_at": "2025-12-25T00:00:00Z",
-      "fetched_at": "2025-12-25T02:00:00+00:00",
-      "tags": ["startup", "AI"]
+      "meta": {
+         "generated_at": "2025-12-25T02:00:00+00:00",
+         "raw_entries": 52,
+         "unique_entries": 40,
+         "dedup_rate": 0.2308,
+         "category_counts": {"community": 12, "news": 10},
+         "failed_sources": []
+      },
+      "entries": [
+         {
+            "source_key": "producthunt_daily",
+            "source": "Product Hunt Daily",
+            "category": "product",
+            "title": "Cool Tool",
+            "url": "https://example.com",
+            "summary_raw": "完整摘要內容",
+            "published_at": "2025-12-25T00:00:00Z",
+            "fetched_at": "2025-12-25T02:00:00+00:00",
+            "tags": ["startup", "AI"]
+         }
+      ]
    }
    ```
 
@@ -97,7 +113,8 @@
 1. **載入 JSON**：檔案不存在或解碼失敗即退出（code=1）。
 2. **驗證內容**：確保為 list 並含必要欄位。
 3. **產生 Markdown**：
-   - 依來源排序分組
+   - 首段輸出「摘要指標」，包含去重率、分類統計、來源健康度與失敗來源列表（若 `meta` 提供）
+   - 先依 `category`，再依來源排序分組
    - `summary_raw` 截斷至 200 字後加上 `...`
    - 顯示 `published_at`、來源、標籤
    - 於文末加入生成時間戳記

@@ -53,6 +53,7 @@ def test_build_payload_structure(sample_entries: list[Dict[str, Any]]):
     assert entry["source_key"] == "source_1"
     assert entry["summary_raw"] == "Summary 1"
     assert entry["url"] == "https://example.com/1"
+    assert entry["category"] == "community"
     assert "fetched_at" in entry
     assert entry["published_at"] == "2025-12-22"
 
@@ -74,6 +75,7 @@ def test_build_payload_handles_missing_fields():
 
     assert payload[0]["url"] == ""
     assert payload[0]["source"] == "Test"
+    assert payload[0]["category"] == "未分類"
 
 
 class DummyResponse:
@@ -100,6 +102,7 @@ class TestFetchRssOrAtom:
             "limit": 1,
             "tags": ["tag"],
             "key": "sample",
+            "category": "community",
         }
         fake_response = DummyResponse(content=b"<rss>")
 
@@ -128,6 +131,7 @@ class TestFetchRssOrAtom:
         assert len(entries) == 1
         assert entries[0]["title"] == "Entry"
         assert entries[0]["source"] == "Sample Feed"
+        assert entries[0]["category"] == "community"
 
     def test_fetch_rss_or_atom_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
         source = {"name": "Timeout Feed", "url": "https://example.com/rss"}
@@ -155,6 +159,7 @@ class TestFetchProductHunt:
             "key": "producthunt_daily",
             "tags": ["startup"],
             "limit": 2,
+            "category": "product",
         }
 
         def fake_getenv(key: str) -> str:
@@ -203,6 +208,7 @@ class TestFetchProductHunt:
         assert entry["link"] == "https://producthunt.com/tool"
         # tags 應包含來源 tags 與 topics，且去重後仍保留原始順序
         assert entry["tags"] == ["startup", "AI"]
+        assert entry["category"] == "product"
 
     def test_fetch_producthunt_missing_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
         source = {"name": "PH", "key": "producthunt_daily"}
@@ -255,12 +261,14 @@ def test_write_payload_writes_json(
 ) -> None:
     output = tmp_path / "raw-2025-12-25.json"
 
-    collector.write_payload(sample_payload_entries, output)
+    document = {"meta": {"foo": "bar"}, "entries": sample_payload_entries}
+    collector.write_payload(document, output)
 
     assert output.exists()
     data = json.loads(output.read_text(encoding="utf-8"))
-    assert data[0]["title"] == "Article 1"
-    assert data[1]["source"] == "Test Source"
+    assert data["meta"] == {"foo": "bar"}
+    assert data["entries"][0]["title"] == "Article 1"
+    assert data["entries"][1]["source"] == "Test Source"
 
 
 class TestParseArgsCollector:
@@ -340,9 +348,10 @@ class TestMain:
 
         recorded: Dict[str, Any] = {}
 
-        def fake_write_payload(payload: List[Dict[str, Any]], path: pathlib.Path) -> None:
-            recorded["count"] = len(payload)
+        def fake_write_payload(document: Dict[str, Any], path: pathlib.Path) -> None:
+            recorded["count"] = len(document["entries"])
             recorded["path"] = path
+            recorded["meta"] = document["meta"]
 
         monkeypatch.setattr(collector, "write_payload", fake_write_payload)
 
@@ -350,6 +359,8 @@ class TestMain:
 
         assert recorded["count"] == len(sample_entries)
         assert recorded["path"] == output_path
+        assert recorded["meta"]["raw_entries"] == len(sample_entries)
+        assert recorded["meta"]["failed_source_count"] == 0
 
     def test_main_exits_when_no_sources(self, monkeypatch: pytest.MonkeyPatch) -> None:
         fake_args = SimpleNamespace(date="2025-12-30", output=None, dry_run=False, verbose=False)

@@ -6,6 +6,7 @@ sources:
     name: "Hacker News (RSS)"
     url: "https://news.ycombinator.com/rss"
     type: "rss"
+    category: "community"
     tags:
       - "startup"
       - "engineering"
@@ -17,6 +18,7 @@ sources:
     name: "GitHub Trending"
     url: "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
     type: "rss"
+    category: "trend"
     tags:
       - "open-source"
       - "github"
@@ -28,6 +30,7 @@ sources:
     name: "Dev.to"
     url: "https://dev.to/feed"
     type: "rss"
+    category: "community"
     tags:
       - "community"
       - "engineering"
@@ -37,6 +40,7 @@ sources:
     name: "TechCrunch AI"
     url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
     type: "rss"
+    category: "news"
     tags:
       - "AI"
       - "news"
@@ -47,6 +51,7 @@ sources:
     name: "GitHub Releases - PyTorch"
     url: "https://github.com/pytorch/pytorch/releases.atom"
     type: "atom"
+    category: "releases"
     tags:
       - "github"
       - "releases"
@@ -59,6 +64,7 @@ sources:
     name: "GitHub Releases - VS Code"
     url: "https://github.com/microsoft/vscode/releases.atom"
     type: "atom"
+    category: "releases"
     tags:
       - "github"
       - "releases"
@@ -71,6 +77,7 @@ sources:
     name: "Hugging Face Daily Papers"
     url: "https://papers.takara.ai/api/feed"
     type: "rss"
+    category: "papers"
     tags:
       - "huggingface"
       - "research"
@@ -83,6 +90,7 @@ sources:
     name: "Product Hunt Daily"
     url: "https://api.producthunt.com/v2/api/graphql"
     type: "producthunt"
+    category: "product"
     tags:
       - "producthunt"
       - "startup"
