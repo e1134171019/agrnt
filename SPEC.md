@@ -29,15 +29,17 @@
 ### 輸入
 - **設定檔位置**：`ops/feeds.yml`
 - **YAML Schema**：
-  ```yaml
-  sources:
-    - key: string          # 必填，唯一識別碼
-      name: string         # 必填，來源名稱
-      url: string          # 必填，RSS/Atom feed URL
-      type: "rss" | "atom" # 必填，feed 類型
-      tags: array<string>  # 選填，標籤列表
-      enabled: boolean     # 選填，預設 true
-  ```
+   ```yaml
+   sources:
+      - key: string              # 必填，唯一識別碼
+         name: string             # 必填，來源名稱
+         url: string              # 必填，RSS/Atom URL，Product Hunt 可填預設 API URL
+         type: "rss" | "atom" | "producthunt"
+         tags: array<string>      # 選填，標籤列表
+         limit: int               # 選填，單一來源最大筆數（預設 50，Product Hunt 預設 20）
+         enabled: boolean         # 選填，預設 true
+   ```
+   - `type=producthunt` 需搭配 `PRODUCTHUNT_TOKEN` 環境變數（GitHub Actions 使用 Secrets），利用 GraphQL API 抓取每日熱門貼文與 topics。
 
 ### 處理流程
 1. **載入設定**：讀取 `ops/feeds.yml` 並驗證 schema（含 key 唯一性）。
@@ -46,6 +48,7 @@
    - 使用 `requests.get(url, timeout=30)`
    - 使用 `feedparser.parse()` 解析 RSS/Atom
    - 每個來源最多取 50 筆 entries
+    - `type=producthunt` 時改用 `requests.post(PRODUCTHUNT_API_URL)`，攜帶 Bearer token 及 GraphQL 查詢
 4. **資料提取**：提取 title/link/summary/published，補上 `source_key`、`tags`。
 5. **去重合併**：依 link 去重。
 6. **產生 JSON**：
@@ -54,13 +57,17 @@
 
 ### 輸出
 - **檔案**：`out/raw-YYYY-MM-DD.json`
-- **日誌**：`logs/collector-YYYY-MM-DD.log`
+- **日誌**：`logs/collector-YYYY-MM-DD.log`（僅非 `--dry-run` 模式會建立檔案，dry-run 仍有 console log）
 
 ### 失敗處理
-- **網路錯誤**：自動重試 3 次，間隔 2 秒，失敗後記錄 WARNING 並跳過該來源。
-- **所有來源失敗**：exit code=2。
-- **檔案寫入失敗**：exit code=3。
-- **設定檔錯誤**：exit code=1，詳細訊息輸出到 stderr/logs。
+- **網路錯誤**：自動重試 3 次，間隔 2 秒，失敗後記錄 WARNING 並跳過該來源（Product Hunt 亦適用）。
+- **錯誤碼對照**：
+   | Code | 說明 |
+   | --- | --- |
+   | 1 | 設定檔不存在、YAML 解析錯誤或缺少必要欄位 |
+   | 2 | 沒有啟用來源或所有來源都抓取失敗 |
+   | 3 | 寫入 JSON 檔案失敗 |
+- **額外情境**：若缺少 `PRODUCTHUNT_TOKEN`，僅跳過該來源並記錄 ERROR，不會中斷整體流程。
 
 ### 執行模式
 - `python ops/collector.py`：依當日日期輸出 JSON。
@@ -71,8 +78,20 @@
 ## 6. digest.py 詳細規格
 
 ### 輸入
-- **資料來源**：`out/raw-YYYY-MM-DD.json`（Collector 產出）。
-- **欄位要求**：每筆 JSON 至少包含 `source_key`、`source`、`title`、`url`、`summary_raw`、`published_at`、`tags`。
+- **資料來源**：`out/raw-YYYY-MM-DD.json`（Collector 產出，或 `--input` 指定檔案）。
+- **欄位要求**：每筆 JSON 至少包含 `source_key`、`source`、`title`、`url`、`summary_raw`、`published_at`、`tags`，可選 `fetched_at` 供追蹤抓取時間。
+   ```json
+   {
+      "source_key": "producthunt_daily",
+      "source": "Product Hunt Daily",
+      "title": "Cool Tool",
+      "url": "https://example.com",
+      "summary_raw": "完整摘要內容",
+      "published_at": "2025-12-25T00:00:00Z",
+      "fetched_at": "2025-12-25T02:00:00+00:00",
+      "tags": ["startup", "AI"]
+   }
+   ```
 
 ### 處理流程
 1. **載入 JSON**：檔案不存在或解碼失敗即退出（code=1）。
@@ -84,14 +103,18 @@
    - 於文末加入生成時間戳記
 
 ### 輸出
-- **檔案**：`out/digest-YYYY-MM-DD.md`
-- **日誌**：`logs/digest-YYYY-MM-DD.log`
-- **Dry-run**：輸出至 stdout（仍紀錄 log）。
+- **檔案**：`out/digest-YYYY-MM-DD.md`（若 `--output` 指定則寫入自訂路徑）。
+- **日誌**：`logs/digest-YYYY-MM-DD.log`（無論 dry-run 與否皆生成）。
+- **Dry-run**：Markdown 僅輸出至 stdout，方便預覽；仍會在 log 中記錄。
 
 ### 失敗處理
-- **JSON 缺失/格式錯誤**：exit code=1。
-- **JSON 無資料**：exit code=2。
-- **寫入失敗**：exit code=3。
+- **錯誤碼對照**：
+   | Code | 說明 |
+   | --- | --- |
+   | 1 | JSON 檔案不存在、解析失敗、不是列表或缺欄位 |
+   | 2 | JSON 為空（無任何 entries） |
+   | 3 | Markdown 寫檔失敗 |
+- **異常輸出**：所有錯誤皆透過 LOGGER 記錄並輸出到 stderr，方便 GitHub Actions 收斂到 Problems。
 
 ### 執行模式
 - `python ops/digest.py`：讀取預設 JSON 並輸出 Markdown。

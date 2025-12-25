@@ -207,6 +207,12 @@ pytest tests/ --cov=ops --cov-report=html && start htmlcov/index.html
 
 > 若新增來源、I/O 行為或整合其他 API，請同步補測並維持覆蓋率 ≥ 80%；CI 建議在 pytest 命令加入 `--cov-fail-under=80`，並於開發階段審閱 `htmlcov/index.html` 以快速鎖定缺漏行數。`tests` workflow（[.github/workflows/tests.yml](.github/workflows/tests.yml)）已在 push 與 Pull Request 階段自動執行上述檢查並上傳 coverage artifact，請確保本機結果與 CI 一致。
 
+#### 測試覆蓋率強化規畫
+- **Collector 核心流程**：針對 `setup_logging()`、`write_payload()`、`parse_args()` 與 `main()` 的正常/異常路徑新增測試，用 `monkeypatch` 模擬 CLI 參數、設定載入、HTTP 抓取與寫檔錯誤（對應 `SystemExit` 1/2/3），確保實際執行腳本時可涵蓋所有判斷分支。
+- **網路模組情境**：既有的 `fetch_rss_or_atom()`、`fetch_producthunt()` 測試會模擬成功、timeout、token 缺失與 GraphQL 失敗流程，後續如新增 source type，需覆用同樣的 mock pattern（含 retry 與日誌訊息）避免 coverage 回落。
+- **覆蓋率守門機制**：CI 透過 `pytest ... --cov-fail-under=80` 阻擋低於門檻的 PR，同時將 `coverage.xml` 與 `htmlcov/` 打包成 artifact 供 Reviewer 下載檢視；建議開發者本機亦執行同一命令並檢查 HTML 報告的紅色段落後再提交。
+- **未來增補項目**：若要進一步提升至 95% 以上，可考慮以 `importlib.reload` 模擬缺少 `feedparser`/`requests` 的 ImportError 分支，以及補齊 `PRODUCTHUNT_TOKEN` 設定錯誤與 logging handler 初始化失敗等極端情境。
+
 ---
 
 ## 📖 延伸閱讀
