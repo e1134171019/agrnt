@@ -180,8 +180,18 @@ schedule:
 
 執行測試（需先建立 `tests/`）：
 ```bash
-pytest tests/ --cov=ops --cov-report=html
+# 跑全套單元測試並顯示缺漏行（term-missing）
+pytest tests/test_digest.py tests/test_collector.py --cov=ops --cov-report=term-missing
+
+# 產生 HTML 覆蓋率報告
+pytest tests/ --cov=ops --cov-report=html && start htmlcov/index.html
 ```
+
+目前測試涵蓋：
+- `digest.py`：`load_entries()`、`generate_markdown()`、`parse_args()`、`setup_logging()` 與 `main()`（含 dry-run、例外流程）。
+- `collector.py`：`merge_entries()`、`build_payload()`、`fetch_rss_or_atom()`、`fetch_producthunt()`、`fetch_source()`，透過 mock HTTP 驗證成功/錯誤與重試行為。
+
+> 若新增來源或 I/O 行為，記得同步補測，維持覆蓋率 ≥ 80%。
 
 ---
 
