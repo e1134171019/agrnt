@@ -22,18 +22,26 @@ pip install -r requirements.txt
 sources:
    - key: "hacker_news"
       name: "Hacker News"
-    url: "https://news.ycombinator.com/rss"
-    type: "rss"
-    tags: ["tech", "startup"]
-    enabled: true
-    
-   - key: "custom"
-      name: "我的自訂 Feed"
-    url: "https://example.com/feed.xml"  # 改成你的 RSS URL
-    type: "rss"
-    tags: ["custom"]
-    enabled: true
+      url: "https://news.ycombinator.com/rss"
+      type: "rss"
+      tags:
+         - "tech"
+         - "startup"
+      limit: 30
+      enabled: true
+
+   - key: "producthunt_daily"
+      name: "Product Hunt Daily"
+      url: "https://api.producthunt.com/v2/api/graphql"
+      type: "producthunt"
+      tags:
+         - "launch"
+         - "startup"
+      limit: 20
+      enabled: false  # 啟用前請先設定 PRODUCTHUNT_TOKEN
 ```
+
+> `type` 支援 `rss`、`atom` 與 `producthunt`。`limit` 可以限制每個來源最多抓幾篇文章，預設為 50。
 
 ### 3️⃣ 執行 Collector + Digest（2 分鐘）
 
@@ -85,30 +93,44 @@ cat logs/digest-2025-12-22.log
 
 ---
 
+## 📡 內建資料來源（2025-12）
+
+| key | 來源 | 類型 | 備註 |
+| --- | --- | --- | --- |
+| `hacker_news` | Hacker News 官方 RSS | RSS | 穩定來源，適合觀察產業 & 工程討論 |
+| `github_trending` | GitHubTrendingRSS（第三方） | RSS | GitHub 無官方 RSS，需留意第三方失效，可自行部署 RSSHub 備援 |
+| `github_releases_pytorch` / `github_releases_vscode` | GitHub Releases Atom | Atom | 直接使用 `<owner>/<repo>/releases.atom`，最穩定 |
+| `huggingface_daily_papers` | Takara AI Papers feed（第三方） | RSS | Hugging Face 無官方 RSS，必要時可自建 scraper |
+| `producthunt_daily` | Product Hunt GraphQL API | Custom (`producthunt`) | 需 `PRODUCTHUNT_TOKEN`，若無 token 請保持 disabled |
+
+> 若想加其它 GitHub Releases，只需在 `url` 填入 `https://github.com/<owner>/<repo>/releases.atom` 並複製設定即可。
+
 ## 📁 專案結構
 
 ```
-agrnt/
-├── AGENTS.md          # AI Agent 規範與工作流程
-├── SPEC.md            # 技術規格與系統設計
-├── README.md          # 本檔案
-├── requirements.txt   # Python 依賴清單
-├── .gitignore         # Git 排除設定
-├── ops/
-│   ├── feeds.yml      # RSS/Atom 資料來源設定
-│   ├── collector.py   # 抓取來源並輸出 JSON
-│   └── digest.py      # 讀 JSON 產 Markdown
-├── out/               # 輸出目錄（自動建立）
-│   └── digest-*.md
-├── logs/              # 日誌目錄（自動建立）
-│   └── digest-*.log
-└── .github/
-    ├── ISSUE_TEMPLATE/
-    │   ├── 01-intel-digest.yml    # Intel Digest 模板
-    │   └── 02-dev-task.yml        # Dev Task 模板
-    ├── pull_request_template.md   # PR 模板
-    └── workflows/
-        └── daily-intel-issue.yml  # 每日自動開 Issue
+agrnt/                     # 專案根目錄
+├── AGENTS.md              # AI Agent 規範與工作流程
+├── SPEC.md                # 系統技術規格與設計細節
+├── README.md              # 使用說明與操作指南（本檔）
+├── requirements.txt       # Python 依賴套件列表
+├── .gitignore             # Git 版本控制忽略規則
+├── ops/                   # Collector / Digest 程式與設定
+│   ├── feeds.yml          # RSS/Atom/Product Hunt 等來源清單
+│   ├── collector.py       # 收集所有來源並產出 raw JSON
+│   └── digest.py          # 讀取 raw JSON 生成 Markdown 摘要
+├── out/                   # Collector / Digest 的輸出目錄（自動建立）
+│   ├── raw-YYYY-MM-DD.json  # 每日原始資料（Collector 輸出）
+│   └── digest-YYYY-MM-DD.md # 每日摘要（Digest 輸出，可用於 Issue）
+├── logs/                  # Collector / Digest 的執行日誌（自動建立）
+│   ├── collector-YYYY-MM-DD.log  # Collector 執行記錄
+│   └── digest-YYYY-MM-DD.log     # Digest 執行記錄
+└── .github/               # GitHub Workflow 與模板設定
+   ├── ISSUE_TEMPLATE/    # GitHub Issue 模板
+   │   ├── 01-intel-digest.yml  # 每日情資摘要 Issue 模板
+   │   └── 02-dev-task.yml      # 開發 / 修 bug Issue 模板
+   ├── pull_request_template.md # Pull Request 模板
+   └── workflows/
+      └── daily-intel-issue.yml # 每日自動執行 Collector → Digest → Issue 的 CI
 ```
 
    ## 🧱 Collector → Digest 資料流程
@@ -142,6 +164,17 @@ schedule:
 
 如需啟用自動化功能，設定以下 Secrets：
 - `GITHUB_TOKEN`：自動提供，用於開 Issue
+- `PRODUCTHUNT_TOKEN`：Product Hunt GraphQL API Token。可在 Product Hunt 開發者頁面建立 App，將 client token 填入。GitHub Actions 執行時會自動注入給 collector。
+
+### Product Hunt Token 設定流程
+
+1. 前往 [Product Hunt API](https://www.producthunt.com/v2/api) 建立 Application，取得 `token`。
+2. 在本機開發時，以環境變數輸入：
+   ```bash
+   set PRODUCTHUNT_TOKEN=<your-token>  # Windows PowerShell 請改用 $env:PRODUCTHUNT_TOKEN = "token"
+   ```
+3. 在 GitHub Repository 設定 `PRODUCTHUNT_TOKEN` Secret，供 GitHub Actions 使用。
+4. 更新 `ops/feeds.yml` 將 `producthunt_daily` 的 `enabled` 改為 `true`，即可開始抓取。
 
 ### 測試覆蓋率（未來）
 

@@ -10,15 +10,19 @@ sources:
       - "startup"
       - "engineering"
     enabled: true
+    limit: 30
 
+  # GitHub 官方沒有 RSS，因此使用第三方 GitHubTrendingRSS。請視需求自架 RSSHub 作為備援。
   - key: "github_trending"
     name: "GitHub Trending"
-    url: "https://mshibanami.github.io/GitHubTrendingRSS/weekly/python.xml"
+    url: "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
     type: "rss"
     tags:
       - "open-source"
-      - "python"
+      - "github"
+      - "trending"
     enabled: true
+    limit: 25
 
   - key: "devto"
     name: "Dev.to"
@@ -37,3 +41,51 @@ sources:
       - "AI"
       - "news"
     enabled: true
+    limit: 20
+
+  - key: "github_releases_pytorch"
+    name: "GitHub Releases - PyTorch"
+    url: "https://github.com/pytorch/pytorch/releases.atom"
+    type: "atom"
+    tags:
+      - "github"
+      - "releases"
+      - "pytorch"
+      - "AI"
+    enabled: true
+    limit: 15
+
+  - key: "github_releases_vscode"
+    name: "GitHub Releases - VS Code"
+    url: "https://github.com/microsoft/vscode/releases.atom"
+    type: "atom"
+    tags:
+      - "github"
+      - "releases"
+      - "editor"
+    enabled: true
+    limit: 15
+
+  # Hugging Face 官方沒有穩定 RSS，此處使用第三方 Takara feed，必要時可自建。
+  - key: "huggingface_daily_papers"
+    name: "Hugging Face Daily Papers"
+    url: "https://papers.takara.ai/api/feed"
+    type: "rss"
+    tags:
+      - "huggingface"
+      - "research"
+      - "AI"
+    enabled: true
+    limit: 20
+
+  # 需要 Product Hunt API Token（見 README），啟用前請先設定 GitHub Secret。
+  - key: "producthunt_daily"
+    name: "Product Hunt Daily"
+    url: "https://api.producthunt.com/v2/api/graphql"
+    type: "producthunt"
+    tags:
+      - "producthunt"
+      - "startup"
+      - "launch"
+    enabled: false
+    limit: 20

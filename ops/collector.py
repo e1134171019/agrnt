@@ -5,6 +5,7 @@ import argparse
 import datetime as dt
 import json
 import logging
+import os
 import pathlib
 import sys
 import time
@@ -34,6 +35,10 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 MAX_ENTRIES_PER_SOURCE = 50
 LOGGER = logging.getLogger("collector")
+SUPPORTED_TYPES = {"rss", "atom", "producthunt"}
+PRODUCTHUNT_API_URL = "https://api.producthunt.com/v2/api/graphql"
+PRODUCTHUNT_TOKEN_ENV = "PRODUCTHUNT_TOKEN"
+PRODUCTHUNT_TOPICS_LIMIT = 5
 
 
 def setup_logging(verbose: bool = False, log_file: pathlib.Path | None = None) -> None:
@@ -83,8 +88,10 @@ def load_config(path: pathlib.Path) -> Dict[str, Any]:
         if missing:
             LOGGER.error(f"來源 #{idx} 缺少必要欄位：{', '.join(missing)}")
             sys.exit(1)
-        if source["type"] not in {"rss", "atom"}:
-            LOGGER.error(f"來源 '{source['name']}' 的 type 必須是 'rss' 或 'atom'")
+        if source["type"] not in SUPPORTED_TYPES:
+            LOGGER.error(
+                f"來源 '{source['name']}' 的 type 必須是 {', '.join(sorted(SUPPORTED_TYPES))} 之一"
+            )
             sys.exit(1)
         if source["key"] in seen_keys:
             LOGGER.error(f"來源 key '{source['key']}' 重複")
@@ -95,10 +102,11 @@ def load_config(path: pathlib.Path) -> Dict[str, Any]:
     return config
 
 
-def fetch_feed(source: Dict[str, Any]) -> List[Dict[str, Any]]:
-    """Fetch entries for a single source with retries."""
+def fetch_rss_or_atom(source: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Fetch standard RSS/Atom feeds with retries."""
     name = source["name"]
     url = source["url"]
+    limit = int(source.get("limit", MAX_ENTRIES_PER_SOURCE))
     LOGGER.info(f"抓取來源：{name}")
 
     for attempt in range(1, MAX_RETRIES + 1):
@@ -111,7 +119,7 @@ def fetch_feed(source: Dict[str, Any]) -> List[Dict[str, Any]]:
                 LOGGER.warning(f"{name} 解析時出現警告：{feed.bozo_exception}")
 
             entries: List[Dict[str, Any]] = []
-            for entry in feed.entries[:MAX_ENTRIES_PER_SOURCE]:
+            for entry in feed.entries[:limit]:
                 entries.append(
                     {
                         "title": entry.get("title", "無標題"),
@@ -139,6 +147,107 @@ def fetch_feed(source: Dict[str, Any]) -> List[Dict[str, Any]]:
             break
 
     LOGGER.warning(f"{name} 所有嘗試均失敗，跳過")
+    return []
+
+
+def fetch_producthunt(source: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Fetch Product Hunt posts via GraphQL API."""
+    name = source["name"]
+    token = os.getenv(PRODUCTHUNT_TOKEN_ENV)
+    if not token:
+        LOGGER.error(f"{name} 需要環境變數 {PRODUCTHUNT_TOKEN_ENV}，已跳過")
+        return []
+
+    limit = int(source.get("limit", 20))
+    LOGGER.info(f"抓取來源：{name} (Product Hunt GraphQL)")
+    query = (
+        "query ProductHuntDaily($first: Int!) {"
+        " posts(first: $first, order: RANKING) {"
+        "   edges {"
+        "     node {"
+        "       name"
+        "       tagline"
+        "       description"
+        "       url"
+        "       website"
+        "       createdAt"
+        "       topics(first: %d) { edges { node { name } } }"
+        "     }"
+        "   }"
+        " }"
+        "}"
+    ) % PRODUCTHUNT_TOPICS_LIMIT
+
+    headers = {
+        "Authorization": f"Bearer {token}",
+        "Content-Type": "application/json",
+        "Accept": "application/json",
+    }
+    payload = {"query": query, "variables": {"first": limit}}
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = requests.post(
+                PRODUCTHUNT_API_URL, json=payload, headers=headers, timeout=REQUEST_TIMEOUT
+            )
+            response.raise_for_status()
+            data = response.json()
+
+            posts = data.get("data", {}).get("posts", {})
+            edges = posts.get("edges", [])
+            entries: List[Dict[str, Any]] = []
+            for edge in edges:
+                node = edge.get("node", {})
+                if not node:
+                    continue
+                summary_parts = [node.get("tagline", "").strip()]
+                description = node.get("description", "").strip()
+                if description:
+                    summary_parts.append(description)
+                summary = "\n\n".join(part for part in summary_parts if part)
+                topics = [
+                    topic_edge.get("node", {}).get("name", "")
+                    for topic_edge in node.get("topics", {}).get("edges", [])
+                ]
+
+                entries.append(
+                    {
+                        "title": node.get("name", "無標題"),
+                        "link": node.get("website") or node.get("url", ""),
+                        "summary": summary,
+                        "published": node.get("createdAt", ""),
+                        "source": name,
+                        "source_key": source.get("key", "producthunt"),
+                        "tags": list(dict.fromkeys(source.get("tags", []) + topics)),
+                    }
+                )
+
+            LOGGER.info(f"成功取得 {len(entries)} 筆資料")
+            return entries
+        except requests.Timeout:
+            LOGGER.warning(f"{name} Timeout (嘗試 {attempt}/{MAX_RETRIES})")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except (requests.RequestException, ValueError) as exc:
+            LOGGER.warning(f"{name} GraphQL 錯誤：{exc} (嘗試 {attempt}/{MAX_RETRIES})")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except Exception as exc:  # pylint: disable=broad-except
+            LOGGER.error(f"{name} 未預期錯誤：{exc}")
+            break
+
+    LOGGER.warning(f"{name} 所有嘗試均失敗，跳過")
+    return []
+
+
+def fetch_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Dispatch to the correct fetcher based on source type."""
+    source_type = source.get("type")
+    if source_type in {"rss", "atom"}:
+        return fetch_rss_or_atom(source)
+    if source_type == "producthunt":
+        return fetch_producthunt(source)
+    LOGGER.error(f"不支援的來源型別：{source_type}")
     return []
 
 
@@ -235,7 +344,7 @@ def main() -> None:
     collected: List[List[Dict[str, Any]]] = []
 
     for source in sources:
-        entries = fetch_feed(source)
+        entries = fetch_source(source)
         if entries:
             collected.append(entries)
 
