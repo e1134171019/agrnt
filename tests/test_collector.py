@@ -1,13 +1,16 @@
-"""測試 collector 的資料整併邏輯。"""
+"""測試 collector 的資料整併與抓取邏輯。"""
 import pathlib
 import sys
-from typing import Dict, Any
+from types import SimpleNamespace
+from typing import Any, Dict, List
 
 import pytest
+import requests
 
 # 將 ops/ 加入路徑
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ops"))
 
+import collector
 from collector import build_payload, merge_entries
 
 
@@ -69,3 +72,154 @@ def test_build_payload_handles_missing_fields():
 
     assert payload[0]["url"] == ""
     assert payload[0]["source"] == "Test"
+
+
+class DummyResponse:
+    """簡化版 HTTP 回應物件。"""
+
+    def __init__(self, *, content: bytes = b"", json_data: Dict[str, Any] | None = None) -> None:
+        self.content = content
+        self._json = json_data or {}
+
+    def raise_for_status(self) -> None:
+        return None
+
+    def json(self) -> Dict[str, Any]:
+        return self._json
+
+
+class TestFetchRssOrAtom:
+    """測試 RSS/Atom 抓取流程。"""
+
+    def test_fetch_rss_or_atom_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        source = {
+            "name": "Sample Feed",
+            "url": "https://example.com/rss",
+            "limit": 1,
+            "tags": ["tag"],
+            "key": "sample",
+        }
+        fake_response = DummyResponse(content=b"<rss>")
+
+        def fake_get(url: str, timeout: int) -> DummyResponse:
+            assert url == source["url"]
+            assert timeout == collector.REQUEST_TIMEOUT
+            return fake_response
+
+        def fake_parse(content: bytes) -> SimpleNamespace:
+            assert content == fake_response.content
+            entries = [
+                {
+                    "title": "Entry",
+                    "link": "https://example.com/entry",
+                    "summary": "Summary",
+                    "published": "2025-12-25",
+                }
+            ]
+            return SimpleNamespace(entries=entries, bozo=False)
+
+        monkeypatch.setattr(collector.requests, "get", fake_get)
+        monkeypatch.setattr(collector.feedparser, "parse", fake_parse)
+
+        entries = collector.fetch_rss_or_atom(source)
+
+        assert len(entries) == 1
+        assert entries[0]["title"] == "Entry"
+        assert entries[0]["source"] == "Sample Feed"
+
+    def test_fetch_rss_or_atom_timeout(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        source = {"name": "Timeout Feed", "url": "https://example.com/rss"}
+        attempts: List[int] = []
+
+        def fake_get(url: str, timeout: int) -> None:
+            attempts.append(1)
+            raise requests.Timeout("boom")
+
+        monkeypatch.setattr(collector.requests, "get", fake_get)
+        monkeypatch.setattr(collector.time, "sleep", lambda *_: None)
+
+        entries = collector.fetch_rss_or_atom(source)
+
+        assert entries == []
+        assert len(attempts) == collector.MAX_RETRIES
+
+
+class TestFetchProductHunt:
+    """測試 Product Hunt GraphQL 抓取流程。"""
+
+    def test_fetch_producthunt_success(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        source = {
+            "name": "Product Hunt Daily",
+            "key": "producthunt_daily",
+            "tags": ["startup"],
+            "limit": 2,
+        }
+
+        def fake_getenv(key: str) -> str:
+            assert key == collector.PRODUCTHUNT_TOKEN_ENV
+            return "token"
+
+        response_payload = {
+            "data": {
+                "posts": {
+                    "edges": [
+                        {
+                            "node": {
+                                "name": "Tool",
+                                "tagline": "Tagline",
+                                "description": "Description",
+                                "website": "https://producthunt.com/tool",
+                                "url": "https://producthunt.com/posts/tool",
+                                "createdAt": "2025-12-25",
+                                "topics": {
+                                    "edges": [
+                                        {"node": {"name": "AI"}},
+                                        {"node": {"name": "startup"}},
+                                    ]
+                                },
+                            }
+                        }
+                    ]
+                }
+            }
+        }
+
+        def fake_post(url: str, json: Dict[str, Any], headers: Dict[str, Any], timeout: int) -> DummyResponse:
+            assert url == collector.PRODUCTHUNT_API_URL
+            assert json["variables"]["first"] == source["limit"]
+            assert headers["Authorization"] == "Bearer token"
+            return DummyResponse(json_data=response_payload)
+
+        monkeypatch.setattr(collector.os, "getenv", fake_getenv)
+        monkeypatch.setattr(collector.requests, "post", fake_post)
+
+        entries = collector.fetch_producthunt(source)
+
+        assert len(entries) == 1
+        entry = entries[0]
+        assert entry["title"] == "Tool"
+        assert entry["link"] == "https://producthunt.com/tool"
+        # tags 應包含來源 tags 與 topics，且去重後仍保留原始順序
+        assert entry["tags"] == ["startup", "AI"]
+
+    def test_fetch_producthunt_missing_token(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        source = {"name": "PH", "key": "producthunt_daily"}
+        monkeypatch.setattr(collector.os, "getenv", lambda _key: None)
+
+        entries = collector.fetch_producthunt(source)
+
+        assert entries == []
+
+
+class TestFetchSource:
+    """測試 fetch_source 的派發邏輯。"""
+
+    def test_fetch_source_dispatch(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        rss_source = {"type": "rss"}
+        ph_source = {"type": "producthunt"}
+
+        monkeypatch.setattr(collector, "fetch_rss_or_atom", lambda src: [src])
+        monkeypatch.setattr(collector, "fetch_producthunt", lambda src: [src])
+
+        assert collector.fetch_source(rss_source) == [rss_source]
+        assert collector.fetch_source(ph_source) == [ph_source]

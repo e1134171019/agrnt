@@ -1,7 +1,10 @@
 """測試 digest.py 的資料處理功能。"""
+import datetime as dt
 import json
+import logging
 import pathlib
 import sys
+from types import SimpleNamespace
 from typing import Dict, Any
 
 import pytest
@@ -9,7 +12,8 @@ import pytest
 # 將 ops/ 加入路徑
 sys.path.insert(0, str(pathlib.Path(__file__).parent.parent / "ops"))
 
-from digest import generate_markdown, load_entries
+import digest
+from digest import LOGGER, generate_markdown, load_entries, parse_args, setup_logging
 
 
 class TestLoadEntries:
@@ -177,3 +181,190 @@ class TestGenerateMarkdown:
         
         # 應包含時間戳記前綴
         assert "*本摘要由自動化系統產生於 " in markdown
+
+
+class TestParseArgs:
+    """測試 parse_args() 的 argparse 行為。"""
+
+    class _FakeDate(dt.date):
+        @classmethod
+        def today(cls) -> dt.date:  # type: ignore[override]
+            return cls(2025, 12, 25)
+
+    def test_parse_args_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(digest.dt, "date", self._FakeDate)
+        monkeypatch.setattr(sys, "argv", ["prog"])
+
+        args = parse_args()
+
+        assert args.date == "2025-12-25"
+        assert args.input is None
+        assert args.output is None
+        assert args.dry_run is False
+        assert args.verbose is False
+
+    def test_parse_args_overrides(self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+        input_path = tmp_path / "custom.json"
+        output_path = tmp_path / "digest.md"
+        argv = [
+            "prog",
+            "--date",
+            "2024-01-02",
+            "--input",
+            str(input_path),
+            "--output",
+            str(output_path),
+            "--dry-run",
+            "--verbose",
+        ]
+        monkeypatch.setattr(sys, "argv", argv)
+
+        args = parse_args()
+
+        assert args.date == "2024-01-02"
+        assert args.input == input_path
+        assert args.output == output_path
+        assert args.dry_run is True
+        assert args.verbose is True
+
+    def test_parse_args_invalid_argument(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(sys, "argv", ["prog", "--unknown"])
+
+        with pytest.raises(SystemExit):
+            parse_args()
+
+
+class TestSetupLogging:
+    """測試 setup_logging() 的 handler 與輸出。"""
+
+    def test_setup_logging_creates_handlers(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        # 確保 logging.basicConfig 可重新安裝 handler
+        root_logger = logging.getLogger()
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+
+        log_file = tmp_path / "digest.log"
+
+        setup_logging(verbose=True, log_file=log_file)
+        LOGGER.debug("debug message")
+        LOGGER.info("file message")
+        captured = capsys.readouterr()
+
+        assert LOGGER.isEnabledFor(logging.DEBUG)
+        assert "debug message" in captured.out
+        assert log_file.exists()
+        assert "file message" in log_file.read_text(encoding="utf-8")
+
+        # 測試結束後清理 handler，避免影響其他測試
+        for handler in root_logger.handlers[:]:
+            root_logger.removeHandler(handler)
+            handler.close()
+
+class TestMainFlow:
+    """測試 main() 流程控制。"""
+
+    def test_main_generates_markdown(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        out_dir = tmp_path / "out"
+        logs_dir = tmp_path / "logs"
+        monkeypatch.setattr(digest, "OUT_DIR", out_dir)
+        monkeypatch.setattr(digest, "LOGS_DIR", logs_dir)
+
+        args = SimpleNamespace(
+            date="2025-12-25",
+            input=None,
+            output=None,
+            dry_run=False,
+            verbose=False,
+        )
+        monkeypatch.setattr(digest, "parse_args", lambda: args)
+
+        entries = [
+            {
+                "title": "Main Entry",
+                "url": "https://example.com",
+                "summary_raw": "Summary",
+                "published_at": "2025-12-25",
+                "source": "Main Source",
+                "tags": [],
+            }
+        ]
+        monkeypatch.setattr(digest, "load_entries", lambda path: entries)
+        monkeypatch.setattr(digest, "generate_markdown", lambda _entries, _date: "MARKDOWN")
+
+        digest.main()
+
+        output_path = out_dir / "digest-2025-12-25.md"
+        assert output_path.exists()
+        assert output_path.read_text(encoding="utf-8") == "MARKDOWN"
+        log_path = logs_dir / "digest-2025-12-25.log"
+        assert log_path.exists()
+
+    def test_main_dry_run_prints_markdown(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+        capsys: pytest.CaptureFixture[str],
+    ) -> None:
+        monkeypatch.setattr(digest, "OUT_DIR", tmp_path)
+        monkeypatch.setattr(digest, "LOGS_DIR", tmp_path / "logs")
+
+        args = SimpleNamespace(
+            date="2025-12-24",
+            input=tmp_path / "raw.json",
+            output=None,
+            dry_run=True,
+            verbose=True,
+        )
+        monkeypatch.setattr(digest, "parse_args", lambda: args)
+
+        entries = [
+            {
+                "title": "Dry Entry",
+                "url": "https://dry.run",
+                "summary_raw": "Dry summary",
+                "published_at": "2025-12-24",
+                "source": "Dry Source",
+                "tags": [],
+            }
+        ]
+        monkeypatch.setattr(digest, "load_entries", lambda path: entries)
+        monkeypatch.setattr(digest, "generate_markdown", lambda *_: "DRY")
+
+        digest.main()
+
+        captured = capsys.readouterr()
+        assert "DRY" in captured.out
+        output_path = tmp_path / "digest-2025-12-24.md"
+        assert not output_path.exists()
+
+    def test_main_exits_when_no_entries(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        tmp_path: pathlib.Path,
+    ) -> None:
+        monkeypatch.setattr(digest, "OUT_DIR", tmp_path)
+        monkeypatch.setattr(digest, "LOGS_DIR", tmp_path / "logs")
+
+        args = SimpleNamespace(
+            date="2025-12-23",
+            input=None,
+            output=None,
+            dry_run=False,
+            verbose=False,
+        )
+        monkeypatch.setattr(digest, "parse_args", lambda: args)
+        monkeypatch.setattr(digest, "load_entries", lambda path: [])
+
+        with pytest.raises(SystemExit) as exc_info:
+            digest.main()
+
+        assert exc_info.value.code == 2
