@@ -1,4 +1,6 @@
 """測試 collector 的資料整併與抓取邏輯。"""
+import datetime as dt
+import json
 import pathlib
 import sys
 from types import SimpleNamespace
@@ -223,3 +225,176 @@ class TestFetchSource:
 
         assert collector.fetch_source(rss_source) == [rss_source]
         assert collector.fetch_source(ph_source) == [ph_source]
+
+
+class TestSetupLogging:
+    """測試 setup_logging 的 handler 組態。"""
+
+    def test_setup_logging_configures_handlers(
+        self, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+    ) -> None:
+        recorded: Dict[str, Any] = {}
+
+        def fake_basic_config(**kwargs: Any) -> None:  # type: ignore[override]
+            recorded["kwargs"] = kwargs
+
+        monkeypatch.setattr(collector.logging, "basicConfig", fake_basic_config)
+        log_file = tmp_path / "collector.log"
+
+        collector.setup_logging(verbose=True, log_file=log_file)
+
+        assert log_file.exists()
+        assert "kwargs" in recorded
+        handlers = recorded["kwargs"].get("handlers", [])
+        assert len(handlers) == 2
+        assert recorded["kwargs"].get("level") == collector.logging.DEBUG
+
+
+def test_write_payload_writes_json(
+    tmp_path: pathlib.Path, sample_payload_entries: list[Dict[str, Any]]
+) -> None:
+    output = tmp_path / "raw-2025-12-25.json"
+
+    collector.write_payload(sample_payload_entries, output)
+
+    assert output.exists()
+    data = json.loads(output.read_text(encoding="utf-8"))
+    assert data[0]["title"] == "Article 1"
+    assert data[1]["source"] == "Test Source"
+
+
+class TestParseArgsCollector:
+    """測試 collector.parse_args 行為。"""
+
+    def test_parse_args_defaults(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setattr(sys, "argv", ["collector.py"])
+
+        args = collector.parse_args()
+
+        assert args.date == dt.date.today().isoformat()
+        assert args.output is None
+        assert args.dry_run is False
+        assert args.verbose is False
+
+    def test_parse_args_overrides(self, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path) -> None:
+        output_path = tmp_path / "custom.json"
+        monkeypatch.setattr(
+            sys,
+            "argv",
+            [
+                "collector.py",
+                "--date",
+                "2025-12-30",
+                "--output",
+                str(output_path),
+                "--dry-run",
+                "--verbose",
+            ],
+        )
+
+        args = collector.parse_args()
+
+        assert args.date == "2025-12-30"
+        assert args.output == output_path
+        assert args.dry_run is True
+        assert args.verbose is True
+
+
+class TestMain:
+    """測試 collector.main 的互動流程。"""
+
+    def test_main_dry_run_success(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        sample_entries: list[Dict[str, Any]],
+    ) -> None:
+        fake_args = SimpleNamespace(date="2025-12-30", output=None, dry_run=True, verbose=False)
+        monkeypatch.setattr(collector, "parse_args", lambda: fake_args)
+
+        monkeypatch.setattr(collector, "setup_logging", lambda **_: None)
+        monkeypatch.setattr(
+            collector,
+            "load_config",
+            lambda _path: {"sources": [{"key": "source_1", "type": "rss", "enabled": True}]},
+        )
+        monkeypatch.setattr(collector, "fetch_source", lambda _src: sample_entries)
+
+        collector.main()
+
+    def test_main_writes_payload(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        sample_entries: list[Dict[str, Any]],
+        tmp_path: pathlib.Path,
+    ) -> None:
+        output_path = tmp_path / "raw.json"
+        fake_args = SimpleNamespace(date="2025-12-30", output=output_path, dry_run=False, verbose=True)
+        monkeypatch.setattr(collector, "parse_args", lambda: fake_args)
+        monkeypatch.setattr(collector, "setup_logging", lambda **_: None)
+        monkeypatch.setattr(
+            collector,
+            "load_config",
+            lambda _path: {"sources": [{"key": "source_1", "type": "rss", "enabled": True}]},
+        )
+        monkeypatch.setattr(collector, "fetch_source", lambda _src: sample_entries)
+
+        recorded: Dict[str, Any] = {}
+
+        def fake_write_payload(payload: List[Dict[str, Any]], path: pathlib.Path) -> None:
+            recorded["count"] = len(payload)
+            recorded["path"] = path
+
+        monkeypatch.setattr(collector, "write_payload", fake_write_payload)
+
+        collector.main()
+
+        assert recorded["count"] == len(sample_entries)
+        assert recorded["path"] == output_path
+
+    def test_main_exits_when_no_sources(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fake_args = SimpleNamespace(date="2025-12-30", output=None, dry_run=False, verbose=False)
+        monkeypatch.setattr(collector, "parse_args", lambda: fake_args)
+        monkeypatch.setattr(collector, "setup_logging", lambda **_: None)
+        monkeypatch.setattr(collector, "load_config", lambda _path: {"sources": []})
+
+        with pytest.raises(SystemExit) as exc_info:
+            collector.main()
+
+        assert exc_info.value.code == 2
+
+    def test_main_exits_when_all_sources_fail(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        fake_args = SimpleNamespace(date="2025-12-30", output=None, dry_run=False, verbose=False)
+        monkeypatch.setattr(collector, "parse_args", lambda: fake_args)
+        monkeypatch.setattr(collector, "setup_logging", lambda **_: None)
+        monkeypatch.setattr(
+            collector,
+            "load_config",
+            lambda _path: {"sources": [{"key": "source_1", "type": "rss", "enabled": True}]},
+        )
+        monkeypatch.setattr(collector, "fetch_source", lambda _src: [])
+
+        with pytest.raises(SystemExit) as exc_info:
+            collector.main()
+
+        assert exc_info.value.code == 2
+
+    def test_main_write_payload_error(self, monkeypatch: pytest.MonkeyPatch, sample_entries: list[Dict[str, Any]]) -> None:
+        fake_args = SimpleNamespace(date="2025-12-30", output=None, dry_run=False, verbose=False)
+        monkeypatch.setattr(collector, "parse_args", lambda: fake_args)
+        monkeypatch.setattr(collector, "setup_logging", lambda **_: None)
+        monkeypatch.setattr(
+            collector,
+            "load_config",
+            lambda _path: {"sources": [{"key": "source_1", "type": "rss", "enabled": True}]},
+        )
+        monkeypatch.setattr(collector, "fetch_source", lambda _src: sample_entries)
+
+        def fake_write_payload(_payload: List[Dict[str, Any]], _path: pathlib.Path) -> None:
+            raise OSError("disk full")
+
+        monkeypatch.setattr(collector, "write_payload", fake_write_payload)
+
+        with pytest.raises(SystemExit) as exc_info:
+            collector.main()
+
+        assert exc_info.value.code == 3

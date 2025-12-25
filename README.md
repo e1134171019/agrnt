@@ -61,6 +61,20 @@ cat logs/collector-2025-12-22.log
 cat logs/digest-2025-12-22.log
 ```
 
+> **推薦排程**：若只是檢查來源設定，可先跑 `--dry-run`；確認無誤後再執行正式產出並推送到 GitHub Actions。
+
+---
+
+### 🔄 典型作業流程（Collector → Digest → Issue）
+
+| 步驟 | 指令 / 說明 | 產物 |
+| --- | --- | --- |
+| 1. Collector | `python ops/collector.py --date <YYYY-MM-DD>` | `out/raw-YYYY-MM-DD.json`、`logs/collector-YYYY-MM-DD.log` |
+| 2. Digest | `python ops/digest.py --date <YYYY-MM-DD>` | `out/digest-YYYY-MM-DD.md`、`logs/digest-YYYY-MM-DD.log` |
+| 3. 發佈 Issue | `.github/workflows/daily-intel-issue.yml` 會讀 Markdown 並建立每日 Issue；可透過 `workflow_dispatch` 手動重跑 | GitHub Issue（intel+digest 標籤） |
+
+> **錯誤碼對照**：Collector 1=設定錯誤、2=來源皆失敗、3=寫檔失敗；Digest 1=JSON 解析失敗、2=資料為空、3=寫檔失敗。
+
 ### 4️⃣ 開 Issue 追蹤任務（1 分鐘）
 
 1. 前往 GitHub Issues 頁面
@@ -180,18 +194,18 @@ schedule:
 
 執行測試（需先建立 `tests/`）：
 ```bash
-# 跑全套單元測試並顯示缺漏行（term-missing）
+# 跑核心單元測試並顯示缺漏行（term-missing）
 pytest tests/test_digest.py tests/test_collector.py --cov=ops --cov-report=term-missing
 
-# 產生 HTML 覆蓋率報告
+# 產生完整 HTML 覆蓋率報告（Windows 可用 start 開啟）
 pytest tests/ --cov=ops --cov-report=html && start htmlcov/index.html
 ```
 
 目前測試涵蓋：
-- `digest.py`：`load_entries()`、`generate_markdown()`、`parse_args()`、`setup_logging()` 與 `main()`（含 dry-run、例外流程）。
-- `collector.py`：`merge_entries()`、`build_payload()`、`fetch_rss_or_atom()`、`fetch_producthunt()`、`fetch_source()`，透過 mock HTTP 驗證成功/錯誤與重試行為。
+- `digest.py`：`load_entries()`、`generate_markdown()`、`parse_args()`、`setup_logging()` 與 `main()`（含 dry-run、例外流程），同時驗證空資料、格式錯誤 JSON、Markdown 產物與 logging side effect，確保失敗時能回傳正確錯誤碼。
+- `collector.py`：`merge_entries()`、`build_payload()`、`fetch_rss_or_atom()`、`fetch_producthunt()`、`fetch_source()`；以 mock HTTP 驗證 200/4xx/5xx、timeout、重試與 token 缺失等情境，並確保寫檔與去重流程不會產生重複 entry。
 
-> 若新增來源或 I/O 行為，記得同步補測，維持覆蓋率 ≥ 80%。
+> 若新增來源、I/O 行為或整合其他 API，請同步補測並維持覆蓋率 ≥ 80%；CI 建議在 pytest 命令加入 `--cov-fail-under=80`，並於開發階段審閱 `htmlcov/index.html` 以快速鎖定缺漏行數。`tests` workflow（[.github/workflows/tests.yml](.github/workflows/tests.yml)）已在 push 與 Pull Request 階段自動執行上述檢查並上傳 coverage artifact，請確保本機結果與 CI 一致。
 
 ---
 
