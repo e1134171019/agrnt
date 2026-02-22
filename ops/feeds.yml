@@ -189,6 +189,7 @@ sources:
   # ── IEEE Xplore 搜尋結果 RSS ──────────────────────────────
 
   # IEEE - Sheet Metal Bending + Automation
+  # IEEE 回傳 418（反爬蟲），目前無法繞過，停用。
   - key: "ieee_sheet_metal"
     name: "IEEE Xplore - Sheet Metal Bending Automation"
     url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=sheet+metal+bending+automation&newsort=date"
@@ -199,10 +200,11 @@ sources:
       - "sheet-metal"
       - "automation"
       - "research"
-    enabled: true
+    enabled: false
     limit: 10
 
   # IEEE - CAD CAM Manufacturing Intelligence
+  # IEEE 回傳 418（反爬蟲），目前無法繞過，停用。
   - key: "ieee_cad_cam"
     name: "IEEE Xplore - CAD CAM Smart Manufacturing"
     url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=CAD+CAM+smart+manufacturing&newsort=date"
@@ -214,7 +216,7 @@ sources:
       - "CAM"
       - "smart-manufacturing"
       - "research"
-    enabled: true
+    enabled: false
     limit: 10
 
   # ── Autodesk 官方論壇 ─────────────────────────────────────

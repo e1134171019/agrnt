@@ -114,9 +114,17 @@ def fetch_rss_or_atom(source: Dict[str, Any]) -> List[Dict[str, Any]]:
     limit = int(source.get("limit", MAX_ENTRIES_PER_SOURCE))
     LOGGER.info(f"抓取來源：{name}")
 
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0.0.0 Safari/537.36"
+        )
+    }
+
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = requests.get(url, timeout=REQUEST_TIMEOUT)
+            response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
             feed = feedparser.parse(response.content)
