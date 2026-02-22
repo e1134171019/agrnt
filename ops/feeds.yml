@@ -97,3 +97,122 @@ sources:
       - "launch"
     enabled: false
     limit: 20
+  # ── 製造工程專業期刊 ──────────────────────────────────────
+
+  # MDPI Journal of Manufacturing and Materials Processing
+  # 涵蓋：板金彎折、springback、成形製程、數位孿生
+  - key: "mdpi_jmmp"
+    name: "MDPI - Journal of Manufacturing and Materials Processing"
+    url: "https://www.mdpi.com/rss/journal/jmmp"
+    type: "rss"
+    category: "papers"
+    tags:
+      - "manufacturing"
+      - "sheet-metal"
+      - "bending"
+      - "research"
+    enabled: true
+    limit: 15
+
+  # MDPI Applied Sciences - 工業自動化 / CAD/CAM 子集
+  - key: "mdpi_applsci"
+    name: "MDPI - Applied Sciences (Manufacturing)"
+    url: "https://www.mdpi.com/rss/journal/applsci"
+    type: "rss"
+    category: "papers"
+    tags:
+      - "applied-science"
+      - "automation"
+      - "CAD"
+      - "research"
+    enabled: true
+    limit: 15
+
+  # MDPI Sensors - 工業感測 / PLC / 視覺檢測
+  - key: "mdpi_sensors"
+    name: "MDPI - Sensors (Industrial)"
+    url: "https://www.mdpi.com/rss/journal/sensors"
+    type: "rss"
+    category: "papers"
+    tags:
+      - "sensors"
+      - "industrial"
+      - "vision"
+      - "research"
+    enabled: true
+    limit: 10
+
+  # ── arXiv API 精確查詢 ────────────────────────────────────
+
+  # DXF / Sheet Metal / CAD 相關
+  - key: "arxiv_cad_dxf"
+    name: "arXiv - CAD / DXF / Sheet Metal"
+    url: "http://export.arxiv.org/api/query?search_query=all:DXF+OR+all:%22sheet+metal%22+AND+all:manufacturing&sortBy=submittedDate&sortOrder=descending&max_results=15"
+    type: "atom"
+    category: "papers"
+    tags:
+      - "CAD"
+      - "DXF"
+      - "manufacturing"
+      - "research"
+    enabled: true
+    limit: 15
+
+  # SolidWorks / AutoCAD / CAM 相關
+  - key: "arxiv_solidworks_autocad"
+    name: "arXiv - SolidWorks / AutoCAD / CAM"
+    url: "http://export.arxiv.org/api/query?search_query=all:SolidWorks+OR+all:AutoCAD+AND+all:manufacturing&sortBy=submittedDate&sortOrder=descending&max_results=15"
+    type: "atom"
+    category: "papers"
+    tags:
+      - "SolidWorks"
+      - "AutoCAD"
+      - "CAM"
+      - "research"
+    enabled: true
+    limit: 15
+
+  # 壓床 / 板金彎折 / 數位孿生製造
+  - key: "arxiv_press_brake"
+    name: "arXiv - Press Brake / Bending / Digital Twin Manufacturing"
+    url: "http://export.arxiv.org/api/query?search_query=all:%22press+brake%22+OR+all:%22sheet+metal+bending%22+OR+%28all:%22digital+twin%22+AND+all:manufacturing%29&sortBy=submittedDate&sortOrder=descending&max_results=15"
+    type: "atom"
+    category: "papers"
+    tags:
+      - "press-brake"
+      - "bending"
+      - "digital-twin"
+      - "research"
+    enabled: true
+    limit: 15
+
+  # ── IEEE Xplore 搜尋結果 RSS ──────────────────────────────
+
+  # IEEE - Sheet Metal Bending + Automation
+  - key: "ieee_sheet_metal"
+    name: "IEEE Xplore - Sheet Metal Bending Automation"
+    url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=sheet+metal+bending+automation&newsort=date"
+    type: "rss"
+    category: "papers"
+    tags:
+      - "IEEE"
+      - "sheet-metal"
+      - "automation"
+      - "research"
+    enabled: true
+    limit: 10
+
+  # IEEE - CAD CAM Manufacturing Intelligence
+  - key: "ieee_cad_cam"
+    name: "IEEE Xplore - CAD CAM Smart Manufacturing"
+    url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=CAD+CAM+smart+manufacturing&newsort=date"
+    type: "rss"
+    category: "papers"
+    tags:
+      - "IEEE"
+      - "CAD"
+      - "CAM"
+      - "smart-manufacturing"
+      - "research"
+    enabled: true
+    limit: 10
