@@ -216,3 +216,97 @@ sources:
       - "research"
     enabled: true
     limit: 10
+
+  # ── Autodesk 官方論壇 ─────────────────────────────────────
+  # board.id 公式：https://forums.autodesk.com/autodesk/rss/board?board.id=<slug>
+
+  - key: "autodesk_forums_board_example"
+    name: "Autodesk Forums - Board RSS (Example)"
+    url: "https://forums.autodesk.com/autodesk/rss/board?board.id=tutorials-and-learning-content-forum-en"
+    type: "rss"
+    category: "community"
+    tags:
+      - "autodesk"
+      - "forums"
+      - "rss"
+    enabled: true
+    limit: 30
+
+  # slug 取自網址 bd-p/ 後方
+  - key: "autodesk_forums_autocad"
+    name: "Autodesk Forums - AutoCAD (Board RSS)"
+    url: "https://forums.autodesk.com/autodesk/rss/board?board.id=autocad-forum-en"
+    type: "rss"
+    category: "community"
+    tags:
+      - "autocad"
+      - "autodesk"
+      - "forums"
+    enabled: false
+    limit: 30
+
+  # ── CADforum.cz：技巧 / FAQ 高密度來源 ───────────────────────
+  - key: "cadforum_tips"
+    name: "CADforum.cz - CAD Tips RSS"
+    url: "https://www.cadforum.cz/en/rss.asp"
+    type: "rss"
+    category: "community"
+    tags:
+      - "autocad"
+      - "autodesk"
+      - "tips"
+      - "faq"
+    enabled: true
+    limit: 30
+
+  # ── Stack Overflow：tag 精準追 API / 自動化 ──────────────────
+  # SO feed 實際為 Atom 格式
+
+  - key: "so_tag_autocad"
+    name: "Stack Overflow - tag: autocad"
+    url: "https://stackoverflow.com/feeds/tag?tagnames=autocad&sort=newest"
+    type: "atom"
+    category: "community"
+    tags:
+      - "autocad"
+      - "api"
+      - "automation"
+    enabled: true
+    limit: 30
+
+  - key: "so_tag_solidworks"
+    name: "Stack Overflow - tag: solidworks"
+    url: "https://stackoverflow.com/feeds/tag?tagnames=solidworks&sort=newest"
+    type: "atom"
+    category: "community"
+    tags:
+      - "solidworks"
+      - "api"
+      - "cad"
+    enabled: true
+    limit: 30
+
+  # ── Reddit：即時社群動態 ──────────────────────────────────────
+  # Reddit 有 rate limit，建議 enabled: false 除非有 User-Agent 設定
+
+  - key: "reddit_autocad"
+    name: "Reddit - r/AutoCAD"
+    url: "https://www.reddit.com/r/AutoCAD/.rss"
+    type: "rss"
+    category: "community"
+    tags:
+      - "autocad"
+      - "community"
+    enabled: false
+    limit: 30
+
+  - key: "reddit_solidworks"
+    name: "Reddit - r/SolidWorks"
+    url: "https://www.reddit.com/r/SolidWorks/.rss"
+    type: "rss"
+    category: "community"
+    tags:
+      - "solidworks"
+      - "community"
+    enabled: false
+    limit: 30
