@@ -46,7 +46,66 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 MAX_ENTRIES_PER_SOURCE = 50
 LOGGER = logging.getLogger("collector")
-SUPPORTED_TYPES = {"rss", "atom", "producthunt", "web"}
+SUPPORTED_TYPES = {"rss", "atom", "producthunt", "web", "github_discussions"}
+def fetch_github_discussions(source: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Fetch GitHub Discussions from a repository's discussions API endpoint."""
+    name = source["name"]
+    url = source.get("url")
+    limit = int(source.get("limit", MAX_ENTRIES_PER_SOURCE))
+    LOGGER.info(f"抓取來源：{name} (GitHub Discussions)")
+
+    headers = {
+        "Accept": "application/vnd.github+json",
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0.0.0 Safari/537.36"
+        ),
+    }
+    token = os.getenv("GITHUB_TOKEN") or os.getenv("GH_TOKEN")
+    if token:
+        headers["Authorization"] = f"token {token}"
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            resp = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+            resp.raise_for_status()
+            data = resp.json()
+            items = data if isinstance(data, list) else data.get("discussions") or data.get("items") or data.get("nodes") or []
+            entries: List[Dict[str, Any]] = []
+            for d in items[:limit]:
+                title = d.get("title") or d.get("discussion", {}).get("title") or "無標題"
+                link = d.get("html_url") or d.get("url") or ""
+                body = d.get("body") or d.get("body_html") or d.get("raw_body") or ""
+                published = d.get("created_at") or d.get("updated_at") or ""
+                entries.append({
+                    "title": title,
+                    "link": link,
+                    "summary": body,
+                    "published": published,
+                    "source": name,
+                    "source_key": source.get("key", "unknown"),
+                    "tags": source.get("tags", []),
+                    "category": source.get("category", "未分類"),
+                })
+            LOGGER.info(f"成功取得 {len(entries)} 筆資料")
+            return entries
+        except requests.Timeout:
+            LOGGER.warning(f"{name} Timeout (嘗試 {attempt}/{MAX_RETRIES})")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except requests.RequestException as exc:
+            LOGGER.warning(f"{name} 網路錯誤：{exc} (嘗試 {attempt}/{MAX_RETRIES})")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except ValueError:
+            LOGGER.error(f"{name} 回傳非 JSON 格式，跳過")
+            break
+        except Exception as exc:
+            LOGGER.error(f"{name} 未預期錯誤：{exc}")
+            break
+    LOGGER.warning(f"{name} 所有嘗試均失敗，跳過")
+    return []
 PRODUCTHUNT_API_URL = "https://api.producthunt.com/v2/api/graphql"
 PRODUCTHUNT_TOKEN_ENV = "PRODUCTHUNT_TOKEN"
 PRODUCTHUNT_TOPICS_LIMIT = 5
@@ -277,6 +336,12 @@ def fetch_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
         return fetch_rss_or_atom(source)
     if source_type == "producthunt":
         return fetch_producthunt(source)
+    if source_type == "github_discussions":
+        try:
+            return fetch_github_discussions(source)
+        except Exception as exc:
+            LOGGER.warning("%s (github_discussions) 擷取失敗：%s", source.get("name", source.get("key", "unknown")), exc)
+            return []
     if source_type == "web":
         try:
             return fetch_web_source(source)
