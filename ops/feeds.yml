@@ -54,104 +54,104 @@ sources:
       enabled: true
       limit: 30
 
-  # 範例：自定義網頁爬蟲來源（type: web）
-  - key: "cadforum_forum"
-    name: "CADforum.cz - Forum Topics"
-    url: "https://www.cadforum.cz/forum_en/forum_topics.asp?FID=2"
-    type: "web"
-    category: "community"
-    selector: "tr.forumRow"
-    fields:
-      title: "td.forumTopic a"
-      url: "td.forumTopic a::attr(href)"
-      summary: "td.forumTopic"
-    enabled: true
-    limit: 10
+    # 範例：自定義網頁爬蟲來源（type: web）
+    - key: "cadforum_forum"
+      name: "CADforum.cz - Forum Topics"
+      url: "https://www.cadforum.cz/forum_en/forum_topics.asp?FID=2"
+      type: "web"
+      category: "community"
+      selector: "tr.forumRow"
+      fields:
+        title: "td.forumTopic a"
+        url: "td.forumTopic a::attr(href)"
+        summary: "td.forumTopic"
+      enabled: true
+      limit: 10
 
-  # GitHub 官方沒有 RSS，因此使用第三方 GitHubTrendingRSS。請視需求自架 RSSHub 作為備援。
-  - key: "github_trending"
-    name: "GitHub Trending"
-    url: "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
-    type: "rss"
-    category: "trend"
-    tags:
-      - "open-source"
-      - "github"
-      - "trending"
-    enabled: true
-    limit: 25
+    # GitHub 官方沒有 RSS，因此使用第三方 GitHubTrendingRSS。請視需求自架 RSSHub 作為備援。
+    - key: "github_trending"
+      name: "GitHub Trending"
+      url: "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
+      type: "rss"
+      category: "trend"
+      tags:
+        - "open-source"
+        - "github"
+        - "trending"
+      enabled: true
+      limit: 25
 
-  - key: "devto"
-    name: "Dev.to"
-    url: "https://dev.to/feed"
-    type: "rss"
-    category: "community"
-    tags:
-      - "community"
-      - "engineering"
-    enabled: true
+    - key: "devto"
+      name: "Dev.to"
+      url: "https://dev.to/feed"
+      type: "rss"
+      category: "community"
+      tags:
+        - "community"
+        - "engineering"
+      enabled: true
 
-  - key: "techcrunch_ai"
-    name: "TechCrunch AI"
-    url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
-    type: "rss"
-    category: "news"
-    tags:
-      - "AI"
-      - "news"
-    enabled: true
-    limit: 20
+    - key: "techcrunch_ai"
+      name: "TechCrunch AI"
+      url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
+      type: "rss"
+      category: "news"
+      tags:
+        - "AI"
+        - "news"
+      enabled: true
+      limit: 20
 
-  - key: "github_releases_pytorch"
-    name: "GitHub Releases - PyTorch"
-    url: "https://github.com/pytorch/pytorch/releases.atom"
-    type: "atom"
-    category: "releases"
-    tags:
-      - "github"
-      - "releases"
-      - "pytorch"
-      - "AI"
-    enabled: true
-    limit: 15
+    - key: "github_releases_pytorch"
+      name: "GitHub Releases - PyTorch"
+      url: "https://github.com/pytorch/pytorch/releases.atom"
+      type: "atom"
+      category: "releases"
+      tags:
+        - "github"
+        - "releases"
+        - "pytorch"
+        - "AI"
+      enabled: true
+      limit: 15
 
-  - key: "github_releases_vscode"
-    name: "GitHub Releases - VS Code"
-    url: "https://github.com/microsoft/vscode/releases.atom"
-    type: "atom"
-    category: "releases"
-    tags:
-      - "github"
-      - "releases"
-      - "editor"
-    enabled: true
-    limit: 15
+    - key: "github_releases_vscode"
+      name: "GitHub Releases - VS Code"
+      url: "https://github.com/microsoft/vscode/releases.atom"
+      type: "atom"
+      category: "releases"
+      tags:
+        - "github"
+        - "releases"
+        - "editor"
+      enabled: true
+      limit: 15
 
-  # Hugging Face 官方沒有穩定 RSS，此處使用第三方 Takara feed，必要時可自建。
-  - key: "huggingface_daily_papers"
-    name: "Hugging Face Daily Papers"
-    url: "https://papers.takara.ai/api/feed"
-    type: "rss"
-    category: "papers"
-    tags:
-      - "huggingface"
-      - "research"
-      - "AI"
-    enabled: true
-    limit: 20
+    # Hugging Face 官方沒有穩定 RSS，此處使用第三方 Takara feed，必要時可自建。
+    - key: "huggingface_daily_papers"
+      name: "Hugging Face Daily Papers"
+      url: "https://papers.takara.ai/api/feed"
+      type: "rss"
+      category: "papers"
+      tags:
+        - "huggingface"
+        - "research"
+        - "AI"
+      enabled: true
+      limit: 20
 
-  # 需要 Product Hunt API Token（見 README），啟用前請先設定 GitHub Secret。
-  - key: "producthunt_daily"
-    name: "Product Hunt Daily"
-    url: "https://api.producthunt.com/v2/api/graphql"
-    type: "producthunt"
-    category: "product"
-    tags:
-      - "producthunt"
-      - "startup"
-      - "launch"
-    enabled: false
-    limit: 20
+    # 需要 Product Hunt API Token（見 README），啟用前請先設定 GitHub Secret。
+    - key: "producthunt_daily"
+      name: "Product Hunt Daily"
+      url: "https://api.producthunt.com/v2/api/graphql"
+      type: "producthunt"
+      category: "product"
+      tags:
+        - "producthunt"
+        - "startup"
+        - "launch"
+      enabled: false
+      limit: 20
   # ── 製造工程專業期刊 ──────────────────────────────────────
 
   # MDPI Journal of Manufacturing and Materials Processing
