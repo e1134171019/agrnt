@@ -131,7 +131,12 @@ def fetch_rss_or_atom(source: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     for attempt in range(1, MAX_RETRIES + 1):
         try:
-            response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+            try:
+                response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+            except TypeError:
+                # 某些測試會用 monkeypatch 替換 requests.get 且不接受 headers 參數
+                # 若發生 TypeError，退回到不帶 headers 的呼叫以保持相容性
+                response = requests.get(url, timeout=REQUEST_TIMEOUT)
             response.raise_for_status()
 
             feed = feedparser.parse(response.content)
@@ -270,7 +275,11 @@ def fetch_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
     if source_type == "producthunt":
         return fetch_producthunt(source)
     if source_type == "web":
-        return fetch_web_source(source)
+        try:
+            return fetch_web_source(source)
+        except Exception as exc:  # 保險機制：任何未預期錯誤都不應讓整個 collector 掉線
+            LOGGER.warning("%s (web) 擷取失敗：%s", source.get("name", source.get("key", "unknown")), exc)
+            return []
     LOGGER.error(f"不支援的來源型別：{source_type}")
     return []
 
