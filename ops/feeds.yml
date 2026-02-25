@@ -152,218 +152,219 @@ sources:
         - "launch"
       enabled: false
       limit: 20
-  # ── 製造工程專業期刊 ──────────────────────────────────────
 
-  # MDPI Journal of Manufacturing and Materials Processing
-  # 涵蓋：板金彎折、springback、成形製程、數位孿生
-  - key: "mdpi_jmmp"
-    name: "MDPI - Journal of Manufacturing and Materials Processing"
-    url: "https://www.mdpi.com/rss/journal/jmmp"
-    type: "rss"
-    category: "papers"
-    tags:
-      - "manufacturing"
-      - "sheet-metal"
-      - "bending"
-      - "research"
-    enabled: true
-    limit: 15
+    # ── 製造工程專業期刊 ──────────────────────────────────────
 
-  # MDPI Applied Sciences - 工業自動化 / CAD/CAM 子集
-  - key: "mdpi_applsci"
-    name: "MDPI - Applied Sciences (Manufacturing)"
-    url: "https://www.mdpi.com/rss/journal/applsci"
-    type: "rss"
-    category: "papers"
-    tags:
-      - "applied-science"
-      - "automation"
-      - "CAD"
-      - "research"
-    enabled: true
-    limit: 15
+    # MDPI Journal of Manufacturing and Materials Processing
+    # 涵蓋：板金彎折、springback、成形製程、數位孿生
+    - key: "mdpi_jmmp"
+      name: "MDPI - Journal of Manufacturing and Materials Processing"
+      url: "https://www.mdpi.com/rss/journal/jmmp"
+      type: "rss"
+      category: "papers"
+      tags:
+        - "manufacturing"
+        - "sheet-metal"
+        - "bending"
+        - "research"
+      enabled: true
+      limit: 15
 
-  # MDPI Sensors - 工業感測 / PLC / 視覺檢測
-  - key: "mdpi_sensors"
-    name: "MDPI - Sensors (Industrial)"
-    url: "https://www.mdpi.com/rss/journal/sensors"
-    type: "rss"
-    category: "papers"
-    tags:
-      - "sensors"
-      - "industrial"
-      - "vision"
-      - "research"
-    enabled: true
-    limit: 10
+    # MDPI Applied Sciences - 工業自動化 / CAD/CAM 子集
+    - key: "mdpi_applsci"
+      name: "MDPI - Applied Sciences (Manufacturing)"
+      url: "https://www.mdpi.com/rss/journal/applsci"
+      type: "rss"
+      category: "papers"
+      tags:
+        - "applied-science"
+        - "automation"
+        - "CAD"
+        - "research"
+      enabled: true
+      limit: 15
 
-  # ── arXiv API 精確查詢 ────────────────────────────────────
+    # MDPI Sensors - 工業感測 / PLC / 視覺檢測
+    - key: "mdpi_sensors"
+      name: "MDPI - Sensors (Industrial)"
+      url: "https://www.mdpi.com/rss/journal/sensors"
+      type: "rss"
+      category: "papers"
+      tags:
+        - "sensors"
+        - "industrial"
+        - "vision"
+        - "research"
+      enabled: true
+      limit: 10
 
-  # DXF / Sheet Metal / CAD 相關
-  - key: "arxiv_cad_dxf"
-    name: "arXiv - CAD / DXF / Sheet Metal"
-    url: "http://export.arxiv.org/api/query?search_query=all:DXF+OR+all:%22sheet+metal%22+AND+all:manufacturing&sortBy=submittedDate&sortOrder=descending&max_results=15"
-    type: "atom"
-    category: "papers"
-    tags:
-      - "CAD"
-      - "DXF"
-      - "manufacturing"
-      - "research"
-    enabled: true
-    limit: 15
+    # ── arXiv API 精確查詢 ────────────────────────────────────
 
-  # SolidWorks / AutoCAD / CAM 相關
-  - key: "arxiv_solidworks_autocad"
-    name: "arXiv - SolidWorks / AutoCAD / CAM"
-    url: "http://export.arxiv.org/api/query?search_query=all:SolidWorks+OR+all:AutoCAD+AND+all:manufacturing&sortBy=submittedDate&sortOrder=descending&max_results=15"
-    type: "atom"
-    category: "papers"
-    tags:
-      - "SolidWorks"
-      - "AutoCAD"
-      - "CAM"
-      - "research"
-    enabled: true
-    limit: 15
+    # DXF / Sheet Metal / CAD 相關
+    - key: "arxiv_cad_dxf"
+      name: "arXiv - CAD / DXF / Sheet Metal"
+      url: "http://export.arxiv.org/api/query?search_query=all:DXF+OR+all:%22sheet+metal%22+AND+all:manufacturing&sortBy=submittedDate&sortOrder=descending&max_results=15"
+      type: "atom"
+      category: "papers"
+      tags:
+        - "CAD"
+        - "DXF"
+        - "manufacturing"
+        - "research"
+      enabled: true
+      limit: 15
 
-  # 壓床 / 板金彎折 / 數位孿生製造
-  - key: "arxiv_press_brake"
-    name: "arXiv - Press Brake / Bending / Digital Twin Manufacturing"
-    url: "http://export.arxiv.org/api/query?search_query=all:%22press+brake%22+OR+all:%22sheet+metal+bending%22+OR+%28all:%22digital+twin%22+AND+all:manufacturing%29&sortBy=submittedDate&sortOrder=descending&max_results=15"
-    type: "atom"
-    category: "papers"
-    tags:
-      - "press-brake"
-      - "bending"
-      - "digital-twin"
-      - "research"
-    enabled: true
-    limit: 15
+    # SolidWorks / AutoCAD / CAM 相關
+    - key: "arxiv_solidworks_autocad"
+      name: "arXiv - SolidWorks / AutoCAD / CAM"
+      url: "http://export.arxiv.org/api/query?search_query=all:SolidWorks+OR+all:AutoCAD+AND+all:manufacturing&sortBy=submittedDate&sortOrder=descending&max_results=15"
+      type: "atom"
+      category: "papers"
+      tags:
+        - "SolidWorks"
+        - "AutoCAD"
+        - "CAM"
+        - "research"
+      enabled: true
+      limit: 15
 
-  # ── IEEE Xplore 搜尋結果 RSS ──────────────────────────────
+    # 壓床 / 板金彎折 / 數位孿生製造
+    - key: "arxiv_press_brake"
+      name: "arXiv - Press Brake / Bending / Digital Twin Manufacturing"
+      url: "http://export.arxiv.org/api/query?search_query=all:%22press+brake%22+OR+all:%22sheet+metal+bending%22+OR+%28all:%22digital+twin%22+AND+all:manufacturing%29&sortBy=submittedDate&sortOrder=descending&max_results=15"
+      type: "atom"
+      category: "papers"
+      tags:
+        - "press-brake"
+        - "bending"
+        - "digital-twin"
+        - "research"
+      enabled: true
+      limit: 15
 
-  # IEEE - Sheet Metal Bending + Automation
-  # IEEE 回傳 418（反爬蟲），目前無法繞過，停用。
-  - key: "ieee_sheet_metal"
-    name: "IEEE Xplore - Sheet Metal Bending Automation"
-    url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=sheet+metal+bending+automation&newsort=date"
-    type: "rss"
-    category: "papers"
-    tags:
-      - "IEEE"
-      - "sheet-metal"
-      - "automation"
-      - "research"
-    enabled: false
-    limit: 10
+    # ── IEEE Xplore 搜尋結果 RSS ──────────────────────────────
 
-  # IEEE - CAD CAM Manufacturing Intelligence
-  # IEEE 回傳 418（反爬蟲），目前無法繞過，停用。
-  - key: "ieee_cad_cam"
-    name: "IEEE Xplore - CAD CAM Smart Manufacturing"
-    url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=CAD+CAM+smart+manufacturing&newsort=date"
-    type: "rss"
-    category: "papers"
-    tags:
-      - "IEEE"
-      - "CAD"
-      - "CAM"
-      - "smart-manufacturing"
-      - "research"
-    enabled: false
-    limit: 10
+    # IEEE - Sheet Metal Bending + Automation
+    # IEEE 回傳 418（反爬蟲），目前無法繞過，停用。
+    - key: "ieee_sheet_metal"
+      name: "IEEE Xplore - Sheet Metal Bending Automation"
+      url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=sheet+metal+bending+automation&newsort=date"
+      type: "rss"
+      category: "papers"
+      tags:
+        - "IEEE"
+        - "sheet-metal"
+        - "automation"
+        - "research"
+      enabled: false
+      limit: 10
 
-  # ── Autodesk 官方論壇 ─────────────────────────────────────
-  # board.id 公式：https://forums.autodesk.com/autodesk/rss/board?board.id=<slug>
+    # IEEE - CAD CAM Manufacturing Intelligence
+    # IEEE 回傳 418（反爬蟲），目前無法繞過，停用。
+    - key: "ieee_cad_cam"
+      name: "IEEE Xplore - CAD CAM Smart Manufacturing"
+      url: "https://ieeexplore.ieee.org/rss/searchresults?querytext=CAD+CAM+smart+manufacturing&newsort=date"
+      type: "rss"
+      category: "papers"
+      tags:
+        - "IEEE"
+        - "CAD"
+        - "CAM"
+        - "smart-manufacturing"
+        - "research"
+      enabled: false
+      limit: 10
 
-  - key: "autodesk_forums_board_example"
-    name: "Autodesk Forums - Board RSS (Example)"
-    url: "https://forums.autodesk.com/autodesk/rss/board?board.id=tutorials-and-learning-content-forum-en"
-    type: "rss"
-    category: "community"
-    tags:
-      - "autodesk"
-      - "forums"
-      - "rss"
-    enabled: true
-    limit: 30
+    # ── Autodesk 官方論壇 ─────────────────────────────────────
+    # board.id 公式：https://forums.autodesk.com/autodesk/rss/board?board.id=<slug>
 
-  # slug 取自網址 bd-p/ 後方
-  - key: "autodesk_forums_autocad"
-    name: "Autodesk Forums - AutoCAD (Board RSS)"
-    url: "https://forums.autodesk.com/autodesk/rss/board?board.id=autocad-forum-en"
-    type: "rss"
-    category: "community"
-    tags:
-      - "autocad"
-      - "autodesk"
-      - "forums"
-    enabled: false
-    limit: 30
+    - key: "autodesk_forums_board_example"
+      name: "Autodesk Forums - Board RSS (Example)"
+      url: "https://forums.autodesk.com/autodesk/rss/board?board.id=tutorials-and-learning-content-forum-en"
+      type: "rss"
+      category: "community"
+      tags:
+        - "autodesk"
+        - "forums"
+        - "rss"
+      enabled: true
+      limit: 30
 
-  # ── CADforum.cz：技巧 / FAQ 高密度來源 ───────────────────────
-  - key: "cadforum_tips"
-    name: "CADforum.cz - CAD Tips RSS"
-    url: "https://www.cadforum.cz/en/rss.asp"
-    type: "rss"
-    category: "community"
-    tags:
-      - "autocad"
-      - "autodesk"
-      - "tips"
-      - "faq"
-    enabled: true
-    limit: 30
+    # slug 取自網址 bd-p/ 後方
+    - key: "autodesk_forums_autocad"
+      name: "Autodesk Forums - AutoCAD (Board RSS)"
+      url: "https://forums.autodesk.com/autodesk/rss/board?board.id=autocad-forum-en"
+      type: "rss"
+      category: "community"
+      tags:
+        - "autocad"
+        - "autodesk"
+        - "forums"
+      enabled: false
+      limit: 30
+
+    # ── CADforum.cz：技巧 / FAQ 高密度來源 ───────────────────────
+    - key: "cadforum_tips"
+      name: "CADforum.cz - CAD Tips RSS"
+      url: "https://www.cadforum.cz/en/rss.asp"
+      type: "rss"
+      category: "community"
+      tags:
+        - "autocad"
+        - "autodesk"
+        - "tips"
+        - "faq"
+      enabled: true
+      limit: 30
 
   # ── Stack Overflow：tag 精準追 API / 自動化 ──────────────────
   # SO feed 實際為 Atom 格式
 
-  - key: "so_tag_autocad"
-    name: "Stack Overflow - tag: autocad"
-    url: "https://stackoverflow.com/feeds/tag?tagnames=autocad&sort=newest"
-    type: "atom"
-    category: "community"
-    tags:
-      - "autocad"
-      - "api"
-      - "automation"
-    enabled: true
-    limit: 30
+    - key: "so_tag_autocad"
+      name: "Stack Overflow - tag: autocad"
+      url: "https://stackoverflow.com/feeds/tag?tagnames=autocad&sort=newest"
+      type: "atom"
+      category: "community"
+      tags:
+        - "autocad"
+        - "api"
+        - "automation"
+      enabled: true
+      limit: 30
 
-  - key: "so_tag_solidworks"
-    name: "Stack Overflow - tag: solidworks"
-    url: "https://stackoverflow.com/feeds/tag?tagnames=solidworks&sort=newest"
-    type: "atom"
-    category: "community"
-    tags:
-      - "solidworks"
-      - "api"
-      - "cad"
-    enabled: true
-    limit: 30
+    - key: "so_tag_solidworks"
+      name: "Stack Overflow - tag: solidworks"
+      url: "https://stackoverflow.com/feeds/tag?tagnames=solidworks&sort=newest"
+      type: "atom"
+      category: "community"
+      tags:
+        - "solidworks"
+        - "api"
+        - "cad"
+      enabled: true
+      limit: 30
 
   # ── Reddit：即時社群動態 ──────────────────────────────────────
   # Reddit 有 rate limit，建議 enabled: false 除非有 User-Agent 設定
 
-  - key: "reddit_autocad"
-    name: "Reddit - r/AutoCAD"
-    url: "https://www.reddit.com/r/AutoCAD/.rss"
-    type: "rss"
-    category: "community"
-    tags:
-      - "autocad"
-      - "community"
-    enabled: false
-    limit: 30
+    - key: "reddit_autocad"
+      name: "Reddit - r/AutoCAD"
+      url: "https://www.reddit.com/r/AutoCAD/.rss"
+      type: "rss"
+      category: "community"
+      tags:
+        - "autocad"
+        - "community"
+      enabled: false
+      limit: 30
 
-  - key: "reddit_solidworks"
-    name: "Reddit - r/SolidWorks"
-    url: "https://www.reddit.com/r/SolidWorks/.rss"
-    type: "rss"
-    category: "community"
-    tags:
-      - "solidworks"
-      - "community"
-    enabled: false
-    limit: 30
+    - key: "reddit_solidworks"
+      name: "Reddit - r/SolidWorks"
+      url: "https://www.reddit.com/r/SolidWorks/.rss"
+      type: "rss"
+      category: "community"
+      tags:
+        - "solidworks"
+        - "community"
+      enabled: false
+      limit: 30
