@@ -7,6 +7,7 @@ import json
 import logging
 import pathlib
 import sys
+import os
 from typing import Any, Dict, List, Tuple
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
@@ -191,6 +192,14 @@ def generate_markdown(
                     suffix = "..." if len(summary_full) > 200 else ""
                     lines.append(summary + suffix)
                     lines.append("")
+                # 显示后处理 LLM 输出（若存在）
+                manuf_score = item.get("manufacturing_applicability_score")
+                if manuf_score is not None:
+                    lines.append(f"**Manufacturing applicability score**：{manuf_score}/100")
+                note = item.get("sensor_cad_integration_note")
+                if note:
+                    lines.append(f"**Sensor/CAD integration note**：{note}")
+                    lines.append("")
                 lines.append(f"**來源**：{source}")
                 if tags:
                     lines.append(f"**標籤**：{tags}")
@@ -218,6 +227,61 @@ def main() -> None:
     if not entries:
         LOGGER.error("JSON 沒有資料，無法產出摘要")
         sys.exit(2)
+
+    # 后处理：对 papers 类别使用 LLM/启发式提取 manufacturing applicability score 与 integration note
+    try:
+        from typing import cast
+
+        def _postprocess_paper(entry: Dict[str, Any]) -> None:
+            title = entry.get("title", "") or ""
+            summary = entry.get("summary_raw", "") or ""
+            text = f"{title}\n\n{summary}".lower()
+
+            # 尝试使用 OpenAI（若环境变量和库存在），否则使用简单关键词启发式
+            openai_key = os.environ.get("OPENAI_API_KEY")
+            if openai_key:
+                try:
+                    import openai
+
+                    openai.api_key = openai_key
+                    prompt = (
+                        f"请基于以下论文标题与摘要，给出一个 0-100 的 'manufacturing applicability' 分数，"
+                        f"并在一到两句话中说明是否涉及传感器整合或 CAD/CAM 集成（返回纯文本）。\n\n{text}"
+                    )
+                    resp = openai.ChatCompletion.create(
+                        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+                        messages=[{"role": "user", "content": prompt}],
+                        max_tokens=200,
+                        temperature=0.0,
+                    )
+                    content = resp["choices"][0]["message"]["content"].strip()
+                    # 解析返回：尝试提取数字和文字备注
+                    import re
+
+                    m = re.search(r"(\d{1,3})", content)
+                    score = int(m.group(1)) if m else None
+                    note = content
+                except Exception:
+                    score = None
+                    note = "(LLM 处理失败，使用启发式结果)"
+            else:
+                # 启发式规则：若包含 manufacturing/sensor/cad/cnc/robot keywords 则评分较高
+                score = 10
+                keywords = ["manufactur", "sensor", "cnd", "cnc", "robot", "assembly", "digital twin", "predictive maintenance", "cad", "cam"]
+                hits = sum(1 for kw in keywords if kw in text)
+                score = min(100, 20 + hits * 20)
+                note = "; ".join([kw for kw in ["sensor integration likely" if "sensor" in text else "", "CAD/CAM relevance" if "cad" in text or "cam" in text else ""] if kw]) or "No clear sensor/CAD integration detected"
+
+            if score is not None:
+                entry["manufacturing_applicability_score"] = int(score)
+            if note:
+                entry["sensor_cad_integration_note"] = note
+
+        for e in entries:
+            if (e.get("category") or "").lower() == "papers":
+                _postprocess_paper(e)
+    except Exception:
+        LOGGER.exception("论文后处理步骤发生异常，继续生成摘要")
 
     markdown = generate_markdown(entries, args.date, meta)
 
