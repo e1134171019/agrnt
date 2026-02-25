@@ -3,6 +3,44 @@
 # 所有 enabled=true 的來源都會被自動抓取
 
 sources:
+    - key: "devto_web"
+      name: "Dev.to - 最新文章"
+      url: "https://dev.to/"
+      type: "web"
+      category: "community"
+      selector: "div.crayons-story"
+      fields:
+        title: "h2.crayons-story__title a"
+        url: "h2.crayons-story__title a::attr(href)"
+        summary: "div.crayons-story__body"
+      enabled: true
+      limit: 10
+
+    - key: "stackoverflow_hot"
+      name: "Stack Overflow - 熱門問題"
+      url: "https://stackoverflow.com/questions?tab=Hot"
+      type: "web"
+      category: "community"
+      selector: "div.question-summary"
+      fields:
+        title: "h3 a"
+        url: "h3 a::attr(href)"
+        summary: "div.excerpt"
+      enabled: true
+      limit: 10
+
+    - key: "hackernews_web"
+      name: "Hacker News - 首頁"
+      url: "https://news.ycombinator.com/"
+      type: "web"
+      category: "community"
+      selector: "tr.athing"
+      fields:
+        title: "a.storylink"
+        url: "a.storylink::attr(href)"
+        summary: ""
+      enabled: true
+      limit: 10
   - key: "hacker_news"
     name: "Hacker News (RSS)"
     url: "https://news.ycombinator.com/rss"
@@ -15,18 +53,18 @@ sources:
     limit: 30
 
   # 範例：自定義網頁爬蟲來源（type: web）
-  - key: "example_web_news"
-    name: "Example Web News"
-    url: "https://example.com/news"
+  - key: "cadforum_forum"
+    name: "CADforum.cz - Forum Topics"
+    url: "https://www.cadforum.cz/forum_en/forum_topics.asp?FID=2"
     type: "web"
-    category: "news"
-    selector: ".news-item"
+    category: "community"
+    selector: "tr.forumRow"
     fields:
-      title: ".title"
-      url: "a::attr(href)"
-      summary: ".summary"
+      title: "td.forumTopic a"
+      url: "td.forumTopic a::attr(href)"
+      summary: "td.forumTopic"
     enabled: true
-    limit: 5
+    limit: 10
 
   # GitHub 官方沒有 RSS，因此使用第三方 GitHubTrendingRSS。請視需求自架 RSSHub 作為備援。
   - key: "github_trending"
