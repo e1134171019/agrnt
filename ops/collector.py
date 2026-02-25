@@ -32,7 +32,8 @@ try:
     from ops.web_crawler import fetch_web_source
 except ImportError:
     def fetch_web_source(source):
-        raise SystemExit("請先建立 ops/web_crawler.py 並實作 fetch_web_source")
+        LOGGER.warning("web_crawler.py 未找到，跳過：%s", source.get("name"))
+        return []
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FEEDS_PATH = ROOT / "ops" / "feeds.yml"
