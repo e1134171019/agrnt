@@ -27,6 +27,13 @@ try:
 except ImportError as exc:
     raise SystemExit("請先安裝 PyYAML：pip install pyyaml") from exc
 
+# 新增：導入 web_crawler
+try:
+    from ops.web_crawler import fetch_web_source
+except ImportError:
+    def fetch_web_source(source):
+        raise SystemExit("請先建立 ops/web_crawler.py 並實作 fetch_web_source")
+
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FEEDS_PATH = ROOT / "ops" / "feeds.yml"
 OUT_DIR = ROOT / "out"
@@ -36,7 +43,7 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 MAX_ENTRIES_PER_SOURCE = 50
 LOGGER = logging.getLogger("collector")
-SUPPORTED_TYPES = {"rss", "atom", "producthunt"}
+SUPPORTED_TYPES = {"rss", "atom", "producthunt", "web"}
 PRODUCTHUNT_API_URL = "https://api.producthunt.com/v2/api/graphql"
 PRODUCTHUNT_TOKEN_ENV = "PRODUCTHUNT_TOKEN"
 PRODUCTHUNT_TOPICS_LIMIT = 5
@@ -262,6 +269,8 @@ def fetch_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
         return fetch_rss_or_atom(source)
     if source_type == "producthunt":
         return fetch_producthunt(source)
+    if source_type == "web":
+        return fetch_web_source(source)
     LOGGER.error(f"不支援的來源型別：{source_type}")
     return []
 

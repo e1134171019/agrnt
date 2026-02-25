@@ -1,4 +1,5 @@
-# RSS/Atom Feed 資料來源設定
+
+# RSS/Atom/Web Feed 資料來源設定
 # 所有 enabled=true 的來源都會被自動抓取
 
 sources:
@@ -12,6 +13,20 @@ sources:
       - "engineering"
     enabled: true
     limit: 30
+
+  # 範例：自定義網頁爬蟲來源（type: web）
+  - key: "example_web_news"
+    name: "Example Web News"
+    url: "https://example.com/news"
+    type: "web"
+    category: "news"
+    selector: ".news-item"
+    fields:
+      title: ".title"
+      url: "a::attr(href)"
+      summary: ".summary"
+    enabled: true
+    limit: 5
 
   # GitHub 官方沒有 RSS，因此使用第三方 GitHubTrendingRSS。請視需求自架 RSSHub 作為備援。
   - key: "github_trending"
