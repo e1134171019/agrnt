@@ -95,7 +95,7 @@ sources:
           category: "community"
           selector: ""
           fields: {}
-          enabled: true
+          enabled: false
           limit: 10
 
         - key: "devto_web"
@@ -368,7 +368,7 @@ sources:
           type: "github_discussions"
           category: "releases"
           fields: {}
-          enabled: true
+          enabled: false
           limit: 15
 
         - key: "vscode_discussions"
@@ -377,7 +377,7 @@ sources:
           type: "github_discussions"
           category: "releases"
           fields: {}
-          enabled: true
+          enabled: false
           limit: 15
 
         # 新增：GitHub Trending 主頁（替代第三方 RSS）
