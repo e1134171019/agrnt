@@ -29,6 +29,7 @@ sources:
       enabled: true
       limit: 10
 
+
     - key: "hackernews_web"
       name: "Hacker News - 首頁"
       url: "https://news.ycombinator.com/"
@@ -41,16 +42,17 @@ sources:
         summary: ""
       enabled: true
       limit: 10
-  - key: "hacker_news"
-    name: "Hacker News (RSS)"
-    url: "https://news.ycombinator.com/rss"
-    type: "rss"
-    category: "community"
-    tags:
-      - "startup"
-      - "engineering"
-    enabled: true
-    limit: 30
+
+    - key: "hacker_news"
+      name: "Hacker News (RSS)"
+      url: "https://news.ycombinator.com/rss"
+      type: "rss"
+      category: "community"
+      tags:
+        - "startup"
+        - "engineering"
+      enabled: true
+      limit: 30
 
   # 範例：自定義網頁爬蟲來源（type: web）
   - key: "cadforum_forum"
