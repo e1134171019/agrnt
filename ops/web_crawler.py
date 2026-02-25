@@ -12,8 +12,9 @@ except ImportError as exc:
 
 try:
     from bs4 import BeautifulSoup  # type: ignore
-except ImportError as exc:
-    raise SystemExit("請先安裝 beautifulsoup4：pip install beautifulsoup4") from exc
+    _BS4_AVAILABLE = True
+except ImportError:
+    _BS4_AVAILABLE = False
 
 LOGGER = logging.getLogger("web_crawler")
 
@@ -119,6 +120,9 @@ def fetch_web_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
     - 最多重試 2 次
     - 任何錯誤只回傳空列表，不拋出 exception
     """
+    if not _BS4_AVAILABLE:
+        LOGGER.warning("%s 未安裝 beautifulsoup4，跳過", source.get("name"))
+        return []
     name = source.get("name", source.get("key", "unknown"))
     url = source.get("url", "")
 
