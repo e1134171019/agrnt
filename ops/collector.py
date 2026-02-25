@@ -32,7 +32,9 @@ try:
     from ops.web_crawler import fetch_web_source
 except ImportError:
     def fetch_web_source(source):
-        LOGGER.warning("web_crawler.py 未找到，跳過：%s", source.get("name"))
+        logging.getLogger("collector").warning(
+            "web_crawler.py 未找到，跳過：%s", source.get("name")
+        )
         return []
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
