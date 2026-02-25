@@ -68,13 +68,39 @@ def test_fetch_web_source_http_error(mock_get, sample_source):
     assert result == []
 
 # 4. _parse_with_fields 正確解析 HTML
-@patch("ops.web_crawler.BeautifulSoup")
-def test_parse_with_fields_success(mock_bs, sample_source, sample_html):
-    soup = web_crawler.BeautifulSoup(sample_html, "html.parser")
-    result = web_crawler._parse_with_fields(soup, sample_source)
+def test_parse_with_fields_success():
+    from bs4 import BeautifulSoup
+    from ops.web_crawler import _parse_with_fields
+
+    html = """
+    <div class="item">
+        <h2><a href="/article/1">測試標題</a></h2>
+        <p>測試摘要內容</p>
+    </div>
+    <div class="item">
+        <h2><a href="/article/2">第二篇</a></h2>
+        <p>第二篇摘要</p>
+    </div>
+    """
+    soup = BeautifulSoup(html, "html.parser")
+    source = {
+        "name": "測試來源",
+        "key": "test",
+        "url": "https://example.com",
+        "selector": "div.item",
+        "fields": {
+            "title": "h2 a",
+            "url": "h2 a::attr(href)",
+            "summary": "p",
+        },
+        "limit": 10,
+        "tags": [],
+        "category": "test",
+    }
+    result = _parse_with_fields(soup, source)
     assert len(result) == 2
-    assert result[0]["title"] == "標題1"
-    assert result[1]["title"] == "標題2"
+    assert result[0]["title"] == "測試標題"
+    assert result[1]["title"] == "第二篇"
 
 # 5. _parse_with_fields selector 找不到時回傳空列表
 @patch("ops.web_crawler.BeautifulSoup")
