@@ -150,19 +150,20 @@ sources:
           enabled: true
           limit: 20
 
-        - key: "huggingface_papers_web"
-          name: "Hugging Face Daily Papers"
-          url: "https://huggingface.co/papers"
-          fetcher: "dynamic"
-          type: "web"
+        # HuggingFace Daily Papers — 改用 JSON API（web scraping 已壞）
+        # API 回傳 JSON，collector.py 需加 hf_api fetcher 處理
+        - key: "huggingface_papers_api"
+          name: "Hugging Face Daily Papers (API)"
+          url: "https://huggingface.co/api/daily_papers"
+          type: "json_api"
           category: "papers"
-          selector: "article"
-          fields:
-            title: "a.line-clamp-3"
-            url: "a.line-clamp-3::attr(href)"
-            summary: "p"
+          tags:
+            - "VLA"
+            - "3DGS"
+            - "continual-learning"
+            - "huggingface"
           enabled: true
-          limit: 25
+          limit: 30
 
         # ══════════════════════════════════════════════════════════
         # ④ 全球 AI 模型動態 — 開發者發布 & 更新
@@ -472,5 +473,125 @@ sources:
             - "ROS"
             - "robotics"
             - "sensor-fusion"
+          enabled: true
+          limit: 10
+
+        # ══════════════════════════════════════════════════════════
+        # ⑧ 研究專項：P1-P4 技術層補齊
+        # ══════════════════════════════════════════════════════════
+
+        # CAD + AI 幾何推理（DXF 生成、3D 建模 — P4 核心）
+        - key: "arxiv_cs_gr"
+          name: "arXiv - Computer Graphics (cs.GR)"
+          url: "https://export.arxiv.org/rss/cs.GR"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "CAD"
+            - "3D-modeling"
+            - "geometry"
+          enabled: true
+          limit: 15
+
+        # VLA 開源框架（P3 核心工具鏈）
+        - key: "github_releases_lerobot"
+          name: "GitHub Releases - LeRobot (VLA)"
+          url: "https://github.com/huggingface/lerobot/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "VLA"
+            - "robotics"
+            - "imitation-learning"
+          enabled: true
+          limit: 10
+
+        # RAG 框架（P3 知識庫核心）
+        - key: "github_releases_langchain"
+          name: "GitHub Releases - LangChain"
+          url: "https://github.com/langchain-ai/langchain/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "RAG"
+            - "LLM"
+            - "knowledge-base"
+          enabled: true
+          limit: 10
+
+        - key: "github_releases_llamaindex"
+          name: "GitHub Releases - LlamaIndex"
+          url: "https://github.com/run-llama/llama_index/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "RAG"
+            - "LLM"
+            - "knowledge-base"
+          enabled: true
+          limit: 10
+
+        # 硬體感知層（Orbbec 335Lg RGB-D — P1 核心）
+        - key: "github_releases_orbbec"
+          name: "GitHub Releases - Orbbec SDK v2"
+          url: "https://github.com/orbbec/OrbbecSDK_v2/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "depth-camera"
+            - "RGB-D"
+            - "sensor"
+          enabled: true
+          limit: 10
+
+        # 邊緣部署（Jetson 容器/JetPack — 全系統部署層）
+        - key: "github_releases_jetson"
+          name: "GitHub Releases - Jetson Containers"
+          url: "https://github.com/dusty-nv/jetson-containers/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "Jetson"
+            - "edge-AI"
+            - "deployment"
+          enabled: true
+          limit: 10
+
+        # 機器人操作社群（VLA/操控研究討論）
+        - key: "reddit_robotics"
+          name: "Reddit r/robotics"
+          url: "https://www.reddit.com/r/robotics/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "robotics"
+            - "VLA"
+            - "manipulation"
+          enabled: true
+          limit: 15
+
+        # AR/MR 眼鏡 + 第一視角 AI（ego-centric vision — P1+P3）
+        - key: "reddit_augmentedreality"
+          name: "Reddit r/augmentedreality"
+          url: "https://www.reddit.com/r/augmentedreality/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "AR-glasses"
+            - "ego-centric"
+            - "first-person-view"
+          enabled: true
+          limit: 10
+
+        # Meta Project Aria / Ego4D 研究（第一視角 AI 前沿）
+        - key: "github_releases_projectaria"
+          name: "GitHub Releases - Project Aria Tools"
+          url: "https://github.com/facebookresearch/projectaria_tools/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "ego-centric"
+            - "AR"
+            - "first-person-view"
           enabled: true
           limit: 10

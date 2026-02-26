@@ -37,9 +37,16 @@ jobs:
       - name: Run digest
         run: python ops/digest.py --date "${{ steps.meta.outputs.date }}"
 
-      - name: Create daily digest issue
+      - name: Create Main digest issue
         uses: peter-evans/create-issue-from-file@v5
         with:
-          title: "[Digest] ${{ steps.meta.outputs.date }}"
-          content-filepath: out/digest-${{ steps.meta.outputs.date }}.md
+          title: "[Digest - Main] ${{ steps.meta.outputs.date }}"
+          content-filepath: out/digest-${{ steps.meta.outputs.date }}-main.md
           labels: intel,digest
+
+      - name: Create CAD digest issue
+        uses: peter-evans/create-issue-from-file@v5
+        with:
+          title: "[Digest - CAD] ${{ steps.meta.outputs.date }}"
+          content-filepath: out/digest-${{ steps.meta.outputs.date }}-cad.md
+          labels: intel,digest,cad

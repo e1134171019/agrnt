@@ -46,7 +46,70 @@ MAX_RETRIES = 3
 RETRY_DELAY = 2
 MAX_ENTRIES_PER_SOURCE = 50
 LOGGER = logging.getLogger("collector")
-SUPPORTED_TYPES = {"rss", "atom", "producthunt", "web", "github_discussions"}
+SUPPORTED_TYPES = {"rss", "atom", "producthunt", "web", "github_discussions", "json_api"}
+
+def fetch_json_api(source: Dict[str, Any]) -> List[Dict[str, Any]]:
+    """Fetch from JSON API endpoints (e.g. HuggingFace Daily Papers)."""
+    name = source["name"]
+    url = source["url"]
+    limit = int(source.get("limit", MAX_ENTRIES_PER_SOURCE))
+    LOGGER.info(f"抓取來源：{name} (JSON API)")
+
+    headers = {
+        "User-Agent": (
+            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/122.0.0.0 Safari/537.36"
+        )
+    }
+
+    for attempt in range(1, MAX_RETRIES + 1):
+        try:
+            response = requests.get(url, headers=headers, timeout=REQUEST_TIMEOUT)
+            response.raise_for_status()
+            data = response.json()
+            
+            items = data if isinstance(data, list) else data.get("items") or data.get("data") or []
+            
+            entries: List[Dict[str, Any]] = []
+            for d in items[:limit]:
+                paper = d.get("paper", d)
+                title = paper.get("title") or "無標題"
+                paper_id = paper.get("id", "")
+                link = f"https://huggingface.co/papers/{paper_id}" if paper_id else paper.get("url", "")
+                summary = paper.get("summary", "")
+                published = d.get("publishedAt") or paper.get("publishedAt", "")
+                
+                entries.append(
+                    {
+                        "title": title,
+                        "link": link,
+                        "summary": summary,
+                        "published": published,
+                        "source": name,
+                        "source_key": source.get("key", "unknown"),
+                        "tags": source.get("tags", []),
+                        "category": source.get("category", "未分類"),
+                    }
+                )
+
+            LOGGER.info(f"成功取得 {len(entries)} 筆資料")
+            return entries
+        except requests.Timeout:
+            LOGGER.warning(f"{name} Timeout (嘗試 {attempt}/{MAX_RETRIES})")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except requests.RequestException as exc:
+            LOGGER.warning(f"{name} 網路錯誤：{exc} (嘗試 {attempt}/{MAX_RETRIES})")
+            if attempt < MAX_RETRIES:
+                time.sleep(RETRY_DELAY)
+        except Exception as exc:
+            LOGGER.error(f"{name} 未預期錯誤：{exc}")
+            break
+
+    LOGGER.warning(f"{name} 所有嘗試均失敗，跳過")
+    return []
+
 def fetch_github_discussions(source: Dict[str, Any]) -> List[Dict[str, Any]]:
     """Fetch GitHub Discussions from a repository's discussions API endpoint."""
     name = source["name"]
@@ -336,6 +399,12 @@ def fetch_source(source: Dict[str, Any]) -> List[Dict[str, Any]]:
         return fetch_rss_or_atom(source)
     if source_type == "producthunt":
         return fetch_producthunt(source)
+    if source_type == "json_api":
+        try:
+            return fetch_json_api(source)
+        except Exception as exc:
+            LOGGER.warning("%s (json_api) 擷取失敗：%s", source.get("name", source.get("key", "unknown")), exc)
+            return []
     if source_type == "github_discussions":
         try:
             return fetch_github_discussions(source)

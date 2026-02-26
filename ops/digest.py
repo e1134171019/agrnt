@@ -212,6 +212,28 @@ def generate_markdown(
     return "\n".join(lines)
 
 
+def split_entries(entries: List[Dict[str, Any]]) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+    """將 entries 分為 CAD 相關與其他（Main），避免單篇字數過大。"""
+    cad_keywords = {"cad", "autocad", "solidworks", "creo", "onshape", "3d-modeling", "cs.gr"}
+    
+    cad_entries = []
+    main_entries = []
+    
+    for entry in entries:
+        tags = {t.lower() for t in entry.get("tags", [])}
+        # 檢查 tag 是否涵蓋 CAD 相關，或者 source key 就是 cad 來源
+        source_key = str(entry.get("source_key", "")).lower()
+        
+        is_cad = bool(tags & cad_keywords) or ("cad" in source_key) or ("cs_gr" in source_key)
+        
+        if is_cad:
+            cad_entries.append(entry)
+        else:
+            main_entries.append(entry)
+            
+    return main_entries, cad_entries
+
+
 def main() -> None:
     args = parse_args()
     log_file = LOGS_DIR / f"digest-{args.date}.log"
@@ -235,19 +257,39 @@ def main() -> None:
     except Exception:
         LOGGER.exception("論文後處理步驟發生異常，繼續生成摘要")
 
-    markdown = generate_markdown(entries, args.date, meta)
+    main_entries, cad_entries = split_entries(entries)
+    
+    markdown_main = generate_markdown(main_entries, args.date + " (Main)", meta)
+    markdown_cad = generate_markdown(cad_entries, args.date + " (CAD & 3D)", meta)
+    
+    # 避免超過 GitHub Issue Body 的 65536 bytes 限制 (改用 bytes 計算，中文字元佔 3 bytes)
+    MAX_BYTES = 64000
+    
+    main_bytes = markdown_main.encode('utf-8')
+    if len(main_bytes) > MAX_BYTES:
+        markdown_main = main_bytes[:MAX_BYTES].decode('utf-8', errors='ignore') + "\n\n... (內容過長已被自動截斷，請查閱本地 `out/` 目錄觀看完整版本)"
+        
+    cad_bytes = markdown_cad.encode('utf-8')
+    if len(cad_bytes) > MAX_BYTES:
+        markdown_cad = cad_bytes[:MAX_BYTES].decode('utf-8', errors='ignore') + "\n\n... (內容過長已被自動截斷，請查閱本地 `out/` 目錄觀看完整版本)"
 
     if args.dry_run:
         LOGGER.info("Dry-run 模式，輸出預覽在 stdout")
         if hasattr(sys.stdout, "reconfigure"):
             sys.stdout.reconfigure(encoding="utf-8")
-        print(markdown)
+        print("======== MAIN ========")
+        print(markdown_main[:2000] + "\n... truncated ...")
+        print("\n======== CAD ========")
+        print(markdown_cad[:2000] + "\n... truncated ...")
     else:
-        output_path = args.output or OUT_DIR / f"digest-{args.date}.md"
+        output_path_main = OUT_DIR / f"digest-{args.date}-main.md"
+        output_path_cad = OUT_DIR / f"digest-{args.date}-cad.md"
         try:
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            output_path.write_text(markdown, encoding="utf-8")
-            LOGGER.info(f"產出摘要：{output_path}")
+            output_path_main.parent.mkdir(parents=True, exist_ok=True)
+            output_path_main.write_text(markdown_main, encoding="utf-8")
+            output_path_cad.write_text(markdown_cad, encoding="utf-8")
+            LOGGER.info(f"產出主摘要：{output_path_main}")
+            LOGGER.info(f"產出 CAD 摘要：{output_path_cad}")
         except OSError as exc:
             LOGGER.error(f"寫入檔案失敗：{exc}")
             sys.exit(3)
