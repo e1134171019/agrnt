@@ -37,6 +37,11 @@ jobs:
       - name: Run digest
         run: python ops/digest.py --date "${{ steps.meta.outputs.date }}"
 
+      - name: Generate AI Insights
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: python ops/insight_generator.py --date "${{ steps.meta.outputs.date }}"
+
       - name: Create Main digest issue
         uses: peter-evans/create-issue-from-file@v5
         with:
