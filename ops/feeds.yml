@@ -3,22 +3,11 @@
 # 所有 enabled=true 的來源都會被自動抓取
 
 sources:
-        # Eng-Tips Industrial / Manufacturing Engineers（URL 已變更 404，暫時停用）
-        - key: "engtips_manufacturing"
-          name: "Eng-Tips - Industrial/Manufacturing Engineers"
-          url: "https://www.eng-tips.com/threadminder.cfm?pid=367"
-          fetcher: "stealthy"
-          type: "web"
-          category: "community"
-          selector: "div.thread"
-          fields:
-            title: "div.threadTitle a"
-            url: "div.threadTitle a::attr(href)"
-            summary: "div.threadDesc"
-          enabled: false
-          limit: 10
 
-        # Practical Machinist - CAD/CAM
+        # ══════════════════════════════════════════════════════════
+        # ① 製造 / CAD/CAM / 感測 — 論壇 & 期刊
+        # ══════════════════════════════════════════════════════════
+
         - key: "practicalmachinist_cadcam"
           name: "Practical Machinist - CAD/CAM"
           url: "https://www.practicalmachinist.com/forum/forums/cad-cam.43/"
@@ -33,231 +22,6 @@ sources:
           enabled: true
           limit: 10
 
-        # Control.com - Sensors & Calibration（URL 已變更 404，暫時停用）
-        - key: "control_sensors"
-          name: "Control.com - Sensors & Calibration"
-          url: "https://control.com/forums/sensors-calibration/"
-          fetcher: "stealthy"
-          type: "web"
-          category: "community"
-          selector: "div.thread"
-          fields:
-            title: "a.thread-title"
-            url: "a.thread-title::attr(href)"
-            summary: "div.thread-excerpt"
-          enabled: false
-          limit: 10
-
-        # GrabCAD - SOLIDWORKS Group（URL 已失效 404，暫時停用）
-        - key: "grabcad_solidworks"
-          name: "GrabCAD - SOLIDWORKS Group"
-          url: "https://grabcad.com/groups/solidworks-users-group/discussions"
-          fetcher: "stealthy"
-          type: "web"
-          category: "community"
-          selector: "div.discussion"
-          fields:
-            title: "a.discussion-title"
-            url: "a.discussion-title::attr(href)"
-            summary: "div.discussion-body"
-          enabled: false
-          limit: 10
-
-        # eMastercam - Industrial Forum（IPS 社群需 JS 渲染）
-        - key: "emastercam_industrial"
-          name: "eMastercam - Industrial Forum"
-          url: "https://www.emastercam.com/forums/forum/1-industrial-forum/"
-          fetcher: "dynamic"
-          type: "web"
-          category: "community"
-          selector: "li.ipsDataItem"
-          fields:
-            title: "a.ipsDataItem_title"
-            url: "a.ipsDataItem_title::attr(href)"
-            summary: "div.ipsDataItem_meta"
-          enabled: true
-          limit: 10
-
-        # Autodesk Forums（URL 已變更 404，暫時停用）
-        - key: "autodesk_pdmc"
-          name: "Autodesk Forums - Product Design & Manufacturing"
-          url: "https://forums.autodesk.com/t5/product-design-manufacturing/ct-p/120"
-          fetcher: "dynamic"
-          type: "web"
-          category: "community"
-          selector: "div.lia-message-body-content, div.MessageView, li.lia-list-row"
-          fields:
-            title: "h2 a, a.page-link, .message-subject a"
-            url: "h2 a::attr(href), a.page-link::attr(href), .message-subject a::attr(href)"
-            summary: "div.lia-message-body-content p, .lia-truncated-body-node"
-          enabled: false
-          limit: 10
-
-        # GitHub Discussions - FreeCAD（API 來源，無需 selector）
-        - key: "github_discussions_freecad"
-          name: "GitHub Discussions - FreeCAD"
-          url: "https://api.github.com/repos/FreeCAD/FreeCAD/discussions"
-          type: "github_discussions"
-          category: "community"
-          selector: ""
-          fields: {}
-          enabled: false
-          limit: 10
-
-        - key: "devto_web"
-          name: "Dev.to - 最新文章"
-          url: "https://dev.to/"
-          type: "web"
-          category: "community"
-          selector: "div.crayons-story"
-          fields:
-            title: "h2.crayons-story__title a"
-            url: "h2.crayons-story__title a::attr(href)"
-            summary: "div.crayons-story__body"
-          enabled: false
-          limit: 10
-
-        - key: "stackoverflow_hot"
-          name: "Stack Overflow - 熱門問題"
-          url: "https://stackoverflow.com/questions?tab=Hot"
-          type: "web"
-          category: "community"
-          selector: "div.question-summary"
-          fields:
-            title: "h3 a"
-            url: "h3 a::attr(href)"
-            summary: "div.excerpt"
-          enabled: false
-          limit: 10
-
-        - key: "hackernews_web"
-          name: "Hacker News - 首頁"
-          url: "https://news.ycombinator.com/"
-          type: "web"
-          category: "community"
-          selector: "tr.athing"
-          fields:
-            title: "a.storylink"
-            url: "a.storylink::attr(href)"
-            summary: ""
-          enabled: false
-          limit: 10
-
-        - key: "hacker_news"
-          name: "Hacker News (RSS)"
-          url: "https://news.ycombinator.com/rss"
-          type: "rss"
-          category: "community"
-          tags:
-            - "startup"
-            - "engineering"
-          enabled: true
-          limit: 30
-
-        # CADforum.cz - Forum Topics（ASP.NET 頁面，需反爬保護繞過）
-        - key: "cadforum_forum"
-          name: "CADforum.cz - Forum Topics"
-          url: "https://www.cadforum.cz/forum_en/forum_topics.asp?FID=2"
-          fetcher: "dynamic"
-          type: "web"
-          category: "community"
-          selector: "tr.forumRow, table.forumTable tr"
-          fields:
-            title: "td.forumTopic a, td a"
-            url: "td.forumTopic a::attr(href), td a::attr(href)"
-            summary: "td.forumTopic, td"
-          enabled: true
-          limit: 10
-
-        # GitHub 官方沒有 RSS，因此使用第三方 GitHubTrendingRSS。請視需求自架 RSSHub 作為備援。
-        - key: "github_trending"
-          name: "GitHub Trending"
-          url: "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
-          type: "rss"
-          category: "trend"
-          tags:
-            - "open-source"
-            - "github"
-            - "trending"
-          enabled: true
-          limit: 25
-
-        - key: "devto"
-          name: "Dev.to"
-          url: "https://dev.to/feed"
-          type: "rss"
-          category: "community"
-          tags:
-            - "community"
-            - "engineering"
-          enabled: true
-
-        - key: "techcrunch_ai"
-          name: "TechCrunch AI"
-          url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
-          type: "rss"
-          category: "news"
-          tags:
-            - "AI"
-            - "news"
-          enabled: true
-          limit: 20
-
-        - key: "github_releases_pytorch"
-          name: "GitHub Releases - PyTorch"
-          url: "https://github.com/pytorch/pytorch/releases.atom"
-          type: "atom"
-          category: "releases"
-          tags:
-            - "github"
-            - "releases"
-            - "pytorch"
-            - "AI"
-          enabled: true
-          limit: 15
-
-        - key: "github_releases_vscode"
-          name: "GitHub Releases - VS Code"
-          url: "https://github.com/microsoft/vscode/releases.atom"
-          type: "atom"
-          category: "releases"
-          tags:
-            - "github"
-            - "releases"
-            - "editor"
-          enabled: true
-          limit: 15
-
-        # Hugging Face 官方沒有穩定 RSS，此處使用第三方 Takara feed，必要時可自建。
-        - key: "huggingface_daily_papers"
-          name: "Hugging Face Daily Papers"
-          url: "https://papers.takara.ai/api/feed"
-          type: "rss"
-          category: "papers"
-          tags:
-            - "huggingface"
-            - "research"
-            - "AI"
-          enabled: false
-          limit: 20
-
-        # 需要 Product Hunt API Token（見 README），啟用前請先設定 GitHub Secret。
-        - key: "producthunt_daily"
-          name: "Product Hunt Daily"
-          url: "https://api.producthunt.com/v2/api/graphql"
-          type: "producthunt"
-          category: "product"
-          tags:
-            - "producthunt"
-            - "startup"
-            - "launch"
-          enabled: false
-          limit: 20
-
-        # ── 製造工程專業期刊 ──────────────────────────────────────
-
-        # MDPI Journal of Manufacturing and Materials Processing
-        # 涵蓋：板金彎折、springback、成形製程、數位孿生
         - key: "mdpi_jmmp"
           name: "MDPI - Journal of Manufacturing and Materials Processing"
           url: "https://www.mdpi.com/journal/jmmp/rss"
@@ -266,56 +30,88 @@ sources:
           tags:
             - "manufacturing"
             - "materials"
-          enabled: false
+            - "CAD/CAM"
+          enabled: true
+          limit: 15
+
+        - key: "arxiv_cs_ro"
+          name: "arXiv - Robotics (cs.RO)"
+          url: "https://export.arxiv.org/rss/cs.RO"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "robotics"
+            - "manufacturing"
+            - "sensor"
+          enabled: true
+          limit: 15
+
+        # ══════════════════════════════════════════════════════════
+        # ② CAD 軟體 + AI — 官方 Blog
+        # ══════════════════════════════════════════════════════════
+
+        - key: "autodesk_blog"
+          name: "Autodesk Blog"
+          url: "https://www.autodesk.com/blogs/autocad/feed/"
+          type: "rss"
+          category: "news"
+          tags:
+            - "AutoCAD"
+            - "CAD"
+            - "AI"
+          enabled: true
           limit: 10
 
-        # 新增：PapersWithCode - Trending (code + benchmark)
-        - key: "paperswithcode_trending"
-          name: "PapersWithCode - Trending AI Papers (Code Ready)"
-          url: "https://paperswithcode.com/"
-          fetcher: "dynamic"
-          type: "web"
-          category: "papers"
-          selector: "div.paper-list-item, article"
-          fields:
-            title: "h4 a, .paper-title"
-            url: "h4 a::attr(href), .paper-title a::attr(href)"
-            summary: "p"
-            code: "a.code-link::attr(href)"
+        - key: "solidworks_blog"
+          name: "SolidWorks Blog"
+          url: "https://blogs.solidworks.com/solidworksblog/feed"
+          type: "rss"
+          category: "news"
+          tags:
+            - "SolidWorks"
+            - "CAD"
+            - "3DEXPERIENCE"
           enabled: true
-          limit: 25
+          limit: 10
 
-        # 新增：Semantic Scholar - Industrial AI & Sensors
-        - key: "semantic_scholar_industrial"
-          name: "Semantic Scholar - Industrial AI & Sensors"
-          url: "https://www.semanticscholar.org/search?q=industrial+AI+OR+manufacturing+OR+sensor+fusion+OR+digital+twin&sort=newest"
-          fetcher: "dynamic"
-          type: "web"
-          category: "papers"
-          selector: "div.paper-card"
-          fields:
-            title: "h2 a"
-            url: "h2 a::attr(href)"
-            summary: "div.abstract"
-            date: "span.date"
+        - key: "ptc_blog"
+          name: "PTC Blog (Creo/Windchill)"
+          url: "https://www.ptc.com/en/blogs/feed"
+          type: "rss"
+          category: "news"
+          tags:
+            - "Creo"
+            - "CAD"
+            - "PLM"
           enabled: true
-          limit: 20
-        # 新增：OpenReview - ICLR/ICML 2026
-        - key: "openreview_iclr2026"
-          name: "OpenReview - ICLR/ICML 2026 Latest Submissions"
-          url: "https://openreview.net/group?id=ICLR.cc/2026/Conference"
-          fetcher: "dynamic"
-          type: "web"
-          category: "papers"
-          selector: "a[href*='/forum?id=']"
-          fields:
-            title: "a[href*='/forum?id=']"
-            url: "a[href*='/forum?id=']::attr(href)"
-            summary: ""
-          enabled: false
-          limit: 20
+          limit: 10
 
-        # 替代來源：arXiv CS.AI RSS
+        - key: "onshape_blog"
+          name: "Onshape Blog (Cloud CAD)"
+          url: "https://www.onshape.com/en/resource-center/blog/rss.xml"
+          type: "rss"
+          category: "news"
+          tags:
+            - "Onshape"
+            - "cloud-CAD"
+          enabled: true
+          limit: 10
+
+        - key: "reddit_cad"
+          name: "Reddit r/CAD"
+          url: "https://www.reddit.com/r/cad/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "CAD"
+            - "community"
+          enabled: true
+          limit: 15
+
+        # ══════════════════════════════════════════════════════════
+        # ③ 頂級 AI 論文 & 研究
+        # ══════════════════════════════════════════════════════════
+
         - key: "arxiv_cs_ai"
           name: "arXiv - CS.AI"
           url: "https://export.arxiv.org/rss/cs.AI"
@@ -328,53 +124,32 @@ sources:
           enabled: true
           limit: 20
 
-        # 新增：Elicit - 工業文獻檢索
-        - key: "elicit_industrial"
-          name: "Elicit - AI Literature Review for Manufacturing"
-          url: "https://elicit.com/search?q=AI+predictive+maintenance+manufacturing+OR+sensor+fusion+OR+digital+twin"
-          type: "web"
+        - key: "arxiv_cs_cl"
+          name: "arXiv - Computation and Language (NLP/LLM)"
+          url: "https://export.arxiv.org/rss/cs.CL"
+          type: "rss"
           category: "papers"
-          selector: "div.result-card, article"
-          fields:
-            title: "h3"
-            url: "a::attr(href)"
-            summary: "div.snippet, p"
-          enabled: false
-          limit: 15
+          tags:
+            - "NLP"
+            - "LLM"
+            - "arxiv"
+          enabled: true
+          limit: 20
 
-        # 新增：SciSpace - 論文解釋與搜尋
-        - key: "scispace_industrial"
-          name: "SciSpace - AI Paper Explanation & Search"
-          url: "https://scispace.com/search?q=industrial+AI+manufacturing+sensor+fusion"
-          fetcher: "dynamic"
-          type: "web"
+        - key: "arxiv_cs_lg"
+          name: "arXiv - Machine Learning"
+          url: "https://export.arxiv.org/rss/cs.LG"
+          type: "rss"
           category: "papers"
-          selector: "div.paper-card, .result-item"
-          fields:
-            title: "h3, .title"
-            url: "a::attr(href)"
-            summary: ".abstract, .snippet"
-          enabled: false
-          limit: 15
+          tags:
+            - "ML"
+            - "deep-learning"
+            - "arxiv"
+          enabled: true
+          limit: 20
 
-        # 新增：Consensus - 科學證據檢索
-        - key: "consensus_industrial"
-          name: "Consensus - AI Research Evidence"
-          url: "https://consensus.app/search/?q=AI+predictive+maintenance+manufacturing"
-          fetcher: "dynamic"
-          type: "web"
-          category: "papers"
-          selector: "div.consensus-result, article"
-          fields:
-            title: "h3, .paper-title"
-            url: "a::attr(href)"
-            summary: ".evidence, .snippet"
-          enabled: false
-          limit: 15
-
-        # Hugging Face Papers 主頁（經瀏覽器確認的真實 selector）
         - key: "huggingface_papers_web"
-          name: "Hugging Face Daily Papers 主頁 (無 RSS)"
+          name: "Hugging Face Daily Papers"
           url: "https://huggingface.co/papers"
           fetcher: "dynamic"
           type: "web"
@@ -387,28 +162,196 @@ sources:
           enabled: true
           limit: 25
 
-        # 新增：PyTorch / VSCode GitHub Discussions（API）
-        - key: "pytorch_discussions"
-          name: "PyTorch GitHub Discussions (無 RSS)"
-          url: "https://api.github.com/repos/pytorch/pytorch/discussions"
-          type: "github_discussions"
-          category: "releases"
-          fields: {}
-          enabled: false
+        # ══════════════════════════════════════════════════════════
+        # ④ 全球 AI 模型動態 — 開發者發布 & 更新
+        # ══════════════════════════════════════════════════════════
+
+        # ── Reddit 社群（模型消息最快的地方） ──
+
+        - key: "reddit_localllama"
+          name: "Reddit r/LocalLLaMA"
+          url: "https://www.reddit.com/r/LocalLLaMA/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "LLM"
+            - "open-source"
+            - "models"
+          enabled: true
+          limit: 20
+
+        - key: "reddit_machinelearning"
+          name: "Reddit r/MachineLearning"
+          url: "https://www.reddit.com/r/MachineLearning/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "ML"
+            - "research"
+          enabled: true
           limit: 15
 
-        - key: "vscode_discussions"
-          name: "VS Code GitHub Discussions (無 RSS)"
-          url: "https://api.github.com/repos/microsoft/vscode/discussions"
-          type: "github_discussions"
+        # ── 模型 Repo Releases（世界各地組織） ──
+
+        - key: "github_releases_ollama"
+          name: "GitHub Releases - Ollama"
+          url: "https://github.com/ollama/ollama/releases.atom"
+          type: "atom"
           category: "releases"
-          fields: {}
-          enabled: false
+          tags:
+            - "LLM"
+            - "local-models"
+            - "ollama"
+          enabled: true
+          limit: 10
+
+        - key: "github_releases_llama_cpp"
+          name: "GitHub Releases - llama.cpp"
+          url: "https://github.com/ggml-org/llama.cpp/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "LLM"
+            - "inference"
+          enabled: true
+          limit: 10
+
+        - key: "github_releases_vllm"
+          name: "GitHub Releases - vLLM"
+          url: "https://github.com/vllm-project/vllm/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "LLM"
+            - "inference"
+          enabled: true
+          limit: 10
+
+        - key: "github_releases_transformers"
+          name: "GitHub Releases - HuggingFace Transformers"
+          url: "https://github.com/huggingface/transformers/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "LLM"
+            - "huggingface"
+          enabled: true
+          limit: 10
+
+        - key: "github_releases_pytorch"
+          name: "GitHub Releases - PyTorch"
+          url: "https://github.com/pytorch/pytorch/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "pytorch"
+            - "AI"
+          enabled: true
+          limit: 10
+
+        # ══════════════════════════════════════════════════════════
+        # ⑤ AI 產業新聞 & 模型試用消息
+        # ══════════════════════════════════════════════════════════
+
+        - key: "openai_blog"
+          name: "OpenAI Blog"
+          url: "https://openai.com/blog/rss.xml"
+          type: "rss"
+          category: "news"
+          tags:
+            - "GPT"
+            - "OpenAI"
+            - "models"
+          enabled: true
+          limit: 10
+
+        - key: "anthropic_news"
+          name: "Anthropic News"
+          url: "https://www.anthropic.com/rss.xml"
+          type: "rss"
+          category: "news"
+          tags:
+            - "Claude"
+            - "Anthropic"
+            - "models"
+          enabled: true
+          limit: 10
+
+        - key: "google_ai_blog"
+          name: "Google AI Blog"
+          url: "https://blog.google/technology/ai/rss/"
+          type: "rss"
+          category: "news"
+          tags:
+            - "Gemini"
+            - "Google"
+            - "AI"
+          enabled: true
+          limit: 10
+
+        - key: "meta_ai_blog"
+          name: "Meta AI Blog"
+          url: "https://ai.meta.com/blog/rss/"
+          type: "rss"
+          category: "news"
+          tags:
+            - "LLaMA"
+            - "Meta"
+            - "open-source"
+          enabled: true
+          limit: 10
+
+        - key: "techcrunch_ai"
+          name: "TechCrunch AI"
+          url: "https://techcrunch.com/tag/artificial-intelligence/feed/"
+          type: "rss"
+          category: "news"
+          tags:
+            - "AI"
+            - "news"
+          enabled: true
           limit: 15
 
-        # 新增：GitHub Trending 主頁（替代第三方 RSS）
+        - key: "hacker_news"
+          name: "Hacker News (RSS)"
+          url: "https://news.ycombinator.com/rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "startup"
+            - "engineering"
+          enabled: true
+          limit: 25
+
+        - key: "devto"
+          name: "Dev.to"
+          url: "https://dev.to/feed"
+          type: "rss"
+          category: "community"
+          tags:
+            - "community"
+            - "engineering"
+          enabled: true
+          limit: 15
+
+        # ══════════════════════════════════════════════════════════
+        # ⑥ 開源 & Trending
+        # ══════════════════════════════════════════════════════════
+
+        - key: "github_trending"
+          name: "GitHub Trending (RSS)"
+          url: "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml"
+          type: "rss"
+          category: "trend"
+          tags:
+            - "open-source"
+            - "github"
+            - "trending"
+          enabled: true
+          limit: 25
+
         - key: "github_trending_web"
-          name: "GitHub Trending 主頁 (無 RSS)"
+          name: "GitHub Trending 主頁"
           url: "https://github.com/trending"
           fetcher: "fetcher"
           type: "web"
