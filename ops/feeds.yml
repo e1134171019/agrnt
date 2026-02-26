@@ -22,16 +22,17 @@ sources:
           enabled: true
           limit: 10
 
+        # MDPI JMMP（403 被封鎖，停用）
         - key: "mdpi_jmmp"
           name: "MDPI - Journal of Manufacturing and Materials Processing"
-          url: "https://www.mdpi.com/journal/jmmp/rss"
+          url: "https://www.mdpi.com/rss/journal/jmmp"
           type: "rss"
           category: "journal"
           tags:
             - "manufacturing"
             - "materials"
             - "CAD/CAM"
-          enabled: true
+          enabled: false
           limit: 15
 
         - key: "arxiv_cs_ro"
@@ -51,8 +52,8 @@ sources:
         # ══════════════════════════════════════════════════════════
 
         - key: "autodesk_blog"
-          name: "Autodesk Blog"
-          url: "https://www.autodesk.com/blogs/autocad/feed/"
+          name: "Autodesk News"
+          url: "https://adsknews.autodesk.com/feed"
           type: "rss"
           category: "news"
           tags:
@@ -75,8 +76,8 @@ sources:
           limit: 10
 
         - key: "ptc_blog"
-          name: "PTC Blog (Creo/Windchill)"
-          url: "https://www.ptc.com/en/blogs/feed"
+          name: "PTC Community - Creo"
+          url: "https://community.ptc.com/t5/Creo/ct-p/PTCCreo/rss"
           type: "rss"
           category: "news"
           tags:
@@ -86,15 +87,16 @@ sources:
           enabled: true
           limit: 10
 
+        # Onshape Blog（XML 格式錯誤，停用）
         - key: "onshape_blog"
           name: "Onshape Blog (Cloud CAD)"
-          url: "https://www.onshape.com/en/resource-center/blog/rss.xml"
+          url: "https://www.onshape.com/en/blog/rss.xml"
           type: "rss"
           category: "news"
           tags:
             - "Onshape"
             - "cloud-CAD"
-          enabled: true
+          enabled: false
           limit: 10
 
         - key: "reddit_cad"
@@ -265,16 +267,17 @@ sources:
           enabled: true
           limit: 10
 
+        # Anthropic（無公開 RSS，停用，靠 TechCrunch/Verge 報導）
         - key: "anthropic_news"
-          name: "Anthropic News"
-          url: "https://www.anthropic.com/rss.xml"
+          name: "Anthropic Research"
+          url: "https://www.anthropic.com/research/rss.xml"
           type: "rss"
           category: "news"
           tags:
             - "Claude"
             - "Anthropic"
             - "models"
-          enabled: true
+          enabled: false
           limit: 10
 
         - key: "google_ai_blog"
@@ -289,17 +292,30 @@ sources:
           enabled: true
           limit: 10
 
+        # Meta Research（400 Bad Request，停用）
         - key: "meta_ai_blog"
-          name: "Meta AI Blog"
-          url: "https://ai.meta.com/blog/rss/"
+          name: "Meta Research"
+          url: "https://research.facebook.com/feed/"
           type: "rss"
           category: "news"
           tags:
             - "LLaMA"
             - "Meta"
             - "open-source"
-          enabled: true
+          enabled: false
           limit: 10
+
+        - key: "theverge_ai"
+          name: "The Verge - AI"
+          url: "https://www.theverge.com/rss/ai-artificial-intelligence/index.xml"
+          type: "rss"
+          category: "news"
+          tags:
+            - "AI"
+            - "news"
+            - "models"
+          enabled: true
+          limit: 15
 
         - key: "techcrunch_ai"
           name: "TechCrunch AI"
@@ -363,3 +379,98 @@ sources:
             summary: "p"
           enabled: true
           limit: 25
+
+        # ══════════════════════════════════════════════════════════
+        # ⑦ 論文核心技術：IIoT / 感測融合 / 邊緣 AI / 數位孿生
+        # ══════════════════════════════════════════════════════════
+
+        # 感測器信號處理（IMU、PLC、感測融合 — 論文核心）
+        - key: "arxiv_eess_sp"
+          name: "arXiv - Signal Processing (eess.SP)"
+          url: "https://export.arxiv.org/rss/eess.SP"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "sensor-fusion"
+            - "signal-processing"
+            - "IMU"
+          enabled: true
+          limit: 15
+
+        # 電腦視覺（多視角同步、CAD 一致性檢核 — 論文核心）
+        - key: "arxiv_cs_cv"
+          name: "arXiv - Computer Vision (cs.CV)"
+          url: "https://export.arxiv.org/rss/cs.CV"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "computer-vision"
+            - "3D-reconstruction"
+            - "gaussian-splatting"
+          enabled: true
+          limit: 20
+
+        # 系統與控制（PTP同步、控制理論 — 論文基礎設施層）
+        - key: "arxiv_eess_sy"
+          name: "arXiv - Systems and Control (eess.SY)"
+          url: "https://export.arxiv.org/rss/eess.SY"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "control-systems"
+            - "PLC"
+            - "industrial-automation"
+          enabled: true
+          limit: 15
+
+        # NVIDIA 邊緣 AI（Jetson 部署、邊緣推論 — 論文部署層）
+        - key: "nvidia_blog"
+          name: "NVIDIA Technical Blog"
+          url: "https://developer.nvidia.com/blog/feed/"
+          type: "rss"
+          category: "news"
+          tags:
+            - "edge-AI"
+            - "Jetson"
+            - "inference"
+          enabled: true
+          limit: 10
+
+        # IIoT / PLC / 工業自動化社群
+        - key: "reddit_plc"
+          name: "Reddit r/PLC"
+          url: "https://www.reddit.com/r/PLC/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "PLC"
+            - "industrial-automation"
+            - "IIoT"
+          enabled: true
+          limit: 15
+
+        # 電腦視覺社群（3DGS、SLAM、多視角 — 論文前沿研究）
+        - key: "reddit_computervision"
+          name: "Reddit r/computervision"
+          url: "https://www.reddit.com/r/computervision/.rss"
+          type: "rss"
+          category: "community"
+          tags:
+            - "computer-vision"
+            - "SLAM"
+            - "3DGS"
+          enabled: true
+          limit: 15
+
+        # ROS / 機器人（因子圖、感測融合框架 — 論文融合骨幹）
+        - key: "github_releases_ros2"
+          name: "GitHub Releases - ROS 2"
+          url: "https://github.com/ros2/ros2/releases.atom"
+          type: "atom"
+          category: "releases"
+          tags:
+            - "ROS"
+            - "robotics"
+            - "sensor-fusion"
+          enabled: true
+          limit: 10
