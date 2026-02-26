@@ -3,10 +3,11 @@
 # 所有 enabled=true 的來源都會被自動抓取
 
 sources:
-        # Eng-Tips Industrial / Manufacturing Engineers
+        # Eng-Tips Industrial / Manufacturing Engineers（URL 已變更 404，暫時停用）
         - key: "engtips_manufacturing"
           name: "Eng-Tips - Industrial/Manufacturing Engineers"
           url: "https://www.eng-tips.com/threadminder.cfm?pid=367"
+          fetcher: "stealthy"
           type: "web"
           category: "community"
           selector: "div.thread"
@@ -14,13 +15,14 @@ sources:
             title: "div.threadTitle a"
             url: "div.threadTitle a::attr(href)"
             summary: "div.threadDesc"
-          enabled: true
+          enabled: false
           limit: 10
 
         # Practical Machinist - CAD/CAM
         - key: "practicalmachinist_cadcam"
           name: "Practical Machinist - CAD/CAM"
           url: "https://www.practicalmachinist.com/forum/forums/cad-cam.43/"
+          fetcher: "stealthy"
           type: "web"
           category: "community"
           selector: "div.structItem--thread"
@@ -31,10 +33,11 @@ sources:
           enabled: true
           limit: 10
 
-        # Control.com - Sensors & Calibration
+        # Control.com - Sensors & Calibration（URL 已變更 404，暫時停用）
         - key: "control_sensors"
           name: "Control.com - Sensors & Calibration"
           url: "https://control.com/forums/sensors-calibration/"
+          fetcher: "stealthy"
           type: "web"
           category: "community"
           selector: "div.thread"
@@ -42,13 +45,14 @@ sources:
             title: "a.thread-title"
             url: "a.thread-title::attr(href)"
             summary: "div.thread-excerpt"
-          enabled: true
+          enabled: false
           limit: 10
 
-        # GrabCAD - SOLIDWORKS Group
+        # GrabCAD - SOLIDWORKS Group（URL 已失效 404，暫時停用）
         - key: "grabcad_solidworks"
           name: "GrabCAD - SOLIDWORKS Group"
           url: "https://grabcad.com/groups/solidworks-users-group/discussions"
+          fetcher: "stealthy"
           type: "web"
           category: "community"
           selector: "div.discussion"
@@ -56,13 +60,14 @@ sources:
             title: "a.discussion-title"
             url: "a.discussion-title::attr(href)"
             summary: "div.discussion-body"
-          enabled: true
+          enabled: false
           limit: 10
 
-        # eMastercam - Industrial Forum
+        # eMastercam - Industrial Forum（IPS 社群需 JS 渲染）
         - key: "emastercam_industrial"
           name: "eMastercam - Industrial Forum"
           url: "https://www.emastercam.com/forums/forum/1-industrial-forum/"
+          fetcher: "dynamic"
           type: "web"
           category: "community"
           selector: "li.ipsDataItem"
@@ -73,18 +78,19 @@ sources:
           enabled: true
           limit: 10
 
-        # Autodesk Forums - Product Design & Manufacturing
+        # Autodesk Forums（URL 已變更 404，暫時停用）
         - key: "autodesk_pdmc"
           name: "Autodesk Forums - Product Design & Manufacturing"
           url: "https://forums.autodesk.com/t5/product-design-manufacturing/ct-p/120"
+          fetcher: "dynamic"
           type: "web"
           category: "community"
-          selector: "div.message-list-item"
+          selector: "div.lia-message-body-content, div.MessageView, li.lia-list-row"
           fields:
-            title: "a.message-subject"
-            url: "a.message-subject::attr(href)"
-            summary: "div.message-body"
-          enabled: true
+            title: "h2 a, a.page-link, .message-subject a"
+            url: "h2 a::attr(href), a.page-link::attr(href), .message-subject a::attr(href)"
+            summary: "div.lia-message-body-content p, .lia-truncated-body-node"
+          enabled: false
           limit: 10
 
         # GitHub Discussions - FreeCAD（API 來源，無需 selector）
@@ -148,17 +154,18 @@ sources:
           enabled: true
           limit: 30
 
-        # 範例：自定義網頁爬蟲來源（type: web）
+        # CADforum.cz - Forum Topics（ASP.NET 頁面，需反爬保護繞過）
         - key: "cadforum_forum"
           name: "CADforum.cz - Forum Topics"
           url: "https://www.cadforum.cz/forum_en/forum_topics.asp?FID=2"
+          fetcher: "dynamic"
           type: "web"
           category: "community"
-          selector: "tr.forumRow"
+          selector: "tr.forumRow, table.forumTable tr"
           fields:
-            title: "td.forumTopic a"
-            url: "td.forumTopic a::attr(href)"
-            summary: "td.forumTopic"
+            title: "td.forumTopic a, td a"
+            url: "td.forumTopic a::attr(href), td a::attr(href)"
+            summary: "td.forumTopic, td"
           enabled: true
           limit: 10
 
@@ -266,6 +273,7 @@ sources:
         - key: "paperswithcode_trending"
           name: "PapersWithCode - Trending AI Papers (Code Ready)"
           url: "https://paperswithcode.com/"
+          fetcher: "dynamic"
           type: "web"
           category: "papers"
           selector: "div.paper-list-item, article"
@@ -281,6 +289,7 @@ sources:
         - key: "semantic_scholar_industrial"
           name: "Semantic Scholar - Industrial AI & Sensors"
           url: "https://www.semanticscholar.org/search?q=industrial+AI+OR+manufacturing+OR+sensor+fusion+OR+digital+twin&sort=newest"
+          fetcher: "dynamic"
           type: "web"
           category: "papers"
           selector: "div.paper-card"
@@ -295,6 +304,7 @@ sources:
         - key: "openreview_iclr2026"
           name: "OpenReview - ICLR/ICML 2026 Latest Submissions"
           url: "https://openreview.net/group?id=ICLR.cc/2026/Conference"
+          fetcher: "dynamic"
           type: "web"
           category: "papers"
           selector: "a[href*='/forum?id=']"
@@ -302,6 +312,19 @@ sources:
             title: "a[href*='/forum?id=']"
             url: "a[href*='/forum?id=']::attr(href)"
             summary: ""
+          enabled: false
+          limit: 20
+
+        # 替代來源：arXiv CS.AI RSS
+        - key: "arxiv_cs_ai"
+          name: "arXiv - CS.AI"
+          url: "https://export.arxiv.org/rss/cs.AI"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "AI"
+            - "research"
+            - "arxiv"
           enabled: true
           limit: 20
 
@@ -316,13 +339,14 @@ sources:
             title: "h3"
             url: "a::attr(href)"
             summary: "div.snippet, p"
-          enabled: true
+          enabled: false
           limit: 15
 
         # 新增：SciSpace - 論文解釋與搜尋
         - key: "scispace_industrial"
           name: "SciSpace - AI Paper Explanation & Search"
           url: "https://scispace.com/search?q=industrial+AI+manufacturing+sensor+fusion"
+          fetcher: "dynamic"
           type: "web"
           category: "papers"
           selector: "div.paper-card, .result-item"
@@ -330,13 +354,14 @@ sources:
             title: "h3, .title"
             url: "a::attr(href)"
             summary: ".abstract, .snippet"
-          enabled: true
+          enabled: false
           limit: 15
 
         # 新增：Consensus - 科學證據檢索
         - key: "consensus_industrial"
           name: "Consensus - AI Research Evidence"
           url: "https://consensus.app/search/?q=AI+predictive+maintenance+manufacturing"
+          fetcher: "dynamic"
           type: "web"
           category: "papers"
           selector: "div.consensus-result, article"
@@ -344,19 +369,20 @@ sources:
             title: "h3, .paper-title"
             url: "a::attr(href)"
             summary: ".evidence, .snippet"
-          enabled: true
+          enabled: false
           limit: 15
 
-        # 新增：Hugging Face Papers 主頁（取代 RSS）
+        # Hugging Face Papers 主頁（經瀏覽器確認的真實 selector）
         - key: "huggingface_papers_web"
           name: "Hugging Face Daily Papers 主頁 (無 RSS)"
           url: "https://huggingface.co/papers"
+          fetcher: "dynamic"
           type: "web"
           category: "papers"
-          selector: "article.paper-card, div.paper"
+          selector: "article"
           fields:
-            title: "h3 a"
-            url: "h3 a::attr(href)"
+            title: "a.line-clamp-3"
+            url: "a.line-clamp-3::attr(href)"
             summary: "p"
           enabled: true
           limit: 25
@@ -384,6 +410,7 @@ sources:
         - key: "github_trending_web"
           name: "GitHub Trending 主頁 (無 RSS)"
           url: "https://github.com/trending"
+          fetcher: "fetcher"
           type: "web"
           category: "trend"
           selector: "article.Box-row"

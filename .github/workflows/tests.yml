@@ -28,7 +28,10 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        run: |
+          pip install -r requirements.txt
+          scrapling install
+          playwright install --with-deps chromium
 
       - name: Run pytest with coverage gate
         run: pytest tests --cov=ops --cov-report=term-missing --cov-report=xml --cov-fail-under=80
