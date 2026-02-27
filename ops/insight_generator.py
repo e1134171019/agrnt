@@ -178,8 +178,61 @@ def generate_insights(date_str: str) -> None:
             model='gemini-2.5-flash',
             contents=full_prompt
         )
-        insight_content = response.text
-        LOGGER.info("洞察報告生成成功！")
+        initial_insight = response.text
+        LOGGER.info("初稿戰略報告生成成功！正在進入魔鬼審查員 (Critic) 沙盤辯論...")
+
+        # --- Critic Phase ---
+        critic_prompt = f"""你是一位老派的工廠廠長兼工業 5.0 架構師（魔鬼審查員）。
+你的任務是無情檢視這份 AI 戰略軍師推薦的學術戰略，把它不切實際、無法在 Brownfield 老工廠落地的缺點抓出來。
+
+你的考核基準（極限條件 Checklist）：
+1. 邊緣算力限制：系統只能跑在 Jetson Orin Nano 8GB 上（大型 LLM / Transformer 難以負荷）。
+2. 網路環境極限：工廠內部網路不穩，所有影響機台作動的推論必須離線。
+3. 即時性要求：端到端延遲 (E2E Latency) 不能超過 2 秒。
+4. 感測噪聲預期：金屬會反光、現場有油污粉塵，純 RGB 高精度依賴會失效。
+5. 硬體改裝禁忌：不准改動機器原廠的安全迴路與硬體。
+
+以下是軍師提出的初步戰略：
+{initial_insight}
+
+請給出評估，必須遵守以下格式：
+【判定結果】: PASS 或 REJECT
+【魔鬼審查意見】: (詳細說明理由。若 REJECT 點出違反了哪一條限制；若 PASS 提醒落地注意事項)
+"""
+        critic_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=critic_prompt
+        )
+        critic_feedback = critic_response.text
+        LOGGER.info(f"魔鬼審查完成。")
+
+        # --- Revision Phase ---
+        if "REJECT" in critic_feedback.upper():
+            LOGGER.info("初稿被退回，軍師正在進行自我修正 (Reflection)...")
+            revise_prompt = f"""你先前的戰略提案被具有實務經驗的廠長（魔鬼審查員）判定為不符合工廠現實而退回。
+以下是廠長的審查意見：
+{critic_feedback}
+
+=== 原初稿內容 ===
+{initial_insight}
+=================
+
+請根據廠長的批評，執行自我修正 (Self-Correction)，重新撰寫一份務實的「V2 妥協版」戰略分析。
+同樣保持原有的三大段落結構（命中缺口、是否解決、行動建議），但行動建議必須改為「可落地方案」（如：大模型降級為 3B 模型、採用深度補全、引入 Execution Gating 保守策略等）。
+"""
+            revise_response = client.models.generate_content(
+                model='gemini-2.5-flash',
+                contents=revise_prompt
+            )
+            final_insight = revise_response.text
+            debate_log = f"\n\n### ⚠️ 【幕後沙盤演練紀實：Reflection 自我修正】\n\n- **💥 魔鬼審查委員（廠長）退件理由**：\n{critic_feedback}\n- **🔄 軍師自我修正**：已放棄原先不切實際的方案，更新為上述更務實的 V2 策略。\n"
+        else:
+            final_insight = initial_insight
+            debate_log = f"\n\n### ⚠️ 【幕後沙盤演練紀實：魔鬼審查通過】\n\n- **🛡️ 廠長審查意見**：\n{critic_feedback}\n"
+            
+        insight_content = final_insight + debate_log
+
+        LOGGER.info("最終洞察報告 (含沙盤辯論紀錄) 準備完成！")
     except Exception as exc:
         LOGGER.exception(f"呼叫 Gemini API 失敗: {exc}")
         return
