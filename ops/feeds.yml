@@ -595,3 +595,67 @@ sources:
             - "first-person-view"
           enabled: true
           limit: 10
+
+        # ══════════════════════════════════════════════════════════
+        # ⑨ 製造設備商 & 板金行業媒體（研究差異化追蹤）
+        # 目的：了解天田/百超/通快等商業折彎系統的最新動態，
+        #       找出你的研究與現有商業方案的差異點
+        # ══════════════════════════════════════════════════════════
+
+        # The Fabricator — 全球最大板金/折彎行業媒體（有公開 RSS）
+        - key: "thefabricator"
+          name: "The Fabricator - Sheet Metal Fabrication"
+          url: "https://www.thefabricator.com/thefabricator/rss"
+          type: "rss"
+          category: "industry"
+          tags:
+            - "sheet-metal"
+            - "bending"
+            - "press-brake"
+            - "fabrication"
+          enabled: true
+          limit: 15
+
+        # Manufacturing Engineering — SME 官方期刊（製造業 AI 應用）
+        - key: "sme_manufacturing_engineering"
+          name: "Manufacturing Engineering (SME)"
+          url: "https://www.sme.org/technologies/articles/rss/"
+          type: "rss"
+          category: "industry"
+          tags:
+            - "manufacturing"
+            - "AI"
+            - "automation"
+            - "sheet-metal"
+          enabled: true
+          limit: 10
+
+        # arXiv 工業工程 / 製造系統（折彎規劃、DFM）
+        - key: "arxiv_cs_ce"
+          name: "arXiv - Computational Engineering (cs.CE)"
+          url: "https://export.arxiv.org/rss/cs.CE"
+          type: "rss"
+          category: "papers"
+          tags:
+            - "manufacturing"
+            - "CAD"
+            - "DFM"
+            - "bending-sequence"
+          enabled: true
+          limit: 15
+
+        # Forming World — 板金成形/折彎設備行業媒體
+        - key: "formingworld"
+          name: "Forming World - Press Brake & Metal Forming"
+          url: "https://www.formingworld.com/feed/"
+          type: "rss"
+          category: "industry"
+          tags:
+            - "press-brake"
+            - "bending"
+            - "amada"
+            - "bystronic"
+            - "sheet-metal"
+          enabled: true
+          limit: 10
+
