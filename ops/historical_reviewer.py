@@ -97,10 +97,10 @@ def generate_content_hybrid(client, prompt: str, role_name: str) -> str:
 def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: str, client: genai.Client) -> str:
     LOGGER.info(f"== 開始會審 Batch {batch_idx} == (Hybrid 架構：Ollama 主力 / Gemini 備援)")
     
-    # 1. 戰略軍師 Prompt (萃取 Top 10)
+    # 1. 戰略軍師 Prompt (萃取 Top 50)
     strategist_prompt = f"""你是一位工業 5.0 × 中小企業製造 AI 的頂級首席技術長兼戰略幕僚。
 你的任務是：閱讀「核心研究文件」，並從我提供的「歷史情報總匯 (包含多篇大雜燴的新聞摘要)」中，
-挖掘出最精華、最能填補我們研究缺口的 10 篇重點科技或論文。
+挖掘出最精華、最能填補我們研究缺口的 50 篇重點科技或論文。
 
 === 研究核心文件 ===
 {research_context}
@@ -108,13 +108,13 @@ def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: st
 === 本批次歷史情報 ===
 {batch_text}
 
-請嚴格輸出以下格式的 Top 10 戰略提案：
+請嚴格輸出以下格式的 Top 50 戰略提案：
 ### 📍 TOP 1: [文章標題或工具名稱]
 - **內容摘要：** 簡要描述這是什麼技術
 - **命中缺口：** 對應研究中的哪個問題編號（如 E01、P1...）
 - **初步戰略提案：** 這項新技術有何特點？建議在我們的研究中如何應用？
 
-### 📍 TOP 2... (以此類推，直到挑滿 10 篇)
+### 📍 TOP 2... (以此類推，直到挑滿 50 篇)
 """
     try:
         LOGGER.info(f"Batch {batch_idx} - 軍師正在篩選精華...")
@@ -123,7 +123,7 @@ def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: st
         
         # 2. 廠長魔鬼審查 Prompt
         critic_prompt = f"""你是一位深諳工廠實務的廠長兼工業 5.0 架構師（魔鬼審查員）。
-請嚴格檢視 AI 戰略軍師提出的「Top 10 戰略提案」。你的審查核心不再是單純的硬體算力規格，而是基於我們《中小企業板金製造現場智慧化系統 研究說明書》定義的根本環境與痛點，並且以實務軟體工程師的角度戳破學術界的幻想。
+請嚴格檢視 AI 戰略軍師提出的「Top 50 戰略提案」。你的審查核心不再是單純的硬體算力規格，而是基於我們《中小企業板金製造現場智慧化系統 研究說明書》定義的根本環境與痛點，並且以實務軟體工程師的角度戳破學術界的幻想。
 
 === 我們的核心研究計畫 (Brownfield 升級藍圖) ===
 {research_context}
@@ -134,7 +134,7 @@ def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: st
 3. 實務生產節奏衝擊：系統要求是否會打亂師傅的步調 (B05)？端到端延遲是否會嚴重拖慢製程 (B12，即使我們後台有 RTX 5070 Ti 可以卸載運算，但廠內網路不穩 B03 仍是一大挑戰)？系統犯錯時會不會亂攔截導致師傅暴怒不用 (B13)？
 4. 與目前架構的相容性：該提案是否與我們設計的「事件化證據鏈 (RBv3)」、「多代理人 (Agentic AI)」的戰略重點相容？
 
-以下是軍師提出的 Top 10 歷史精華戰略：
+以下是軍師提出的 Top 50 歷史精華戰略：
 {initial_insight}
 
 請逐篇評估，格式如下：
@@ -149,7 +149,7 @@ def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: st
         # 3. 戰略軍師自我修正 (Reflection)
         if "REJECT" in critic_feedback.upper():
             LOGGER.info(f"Batch {batch_idx} - 有提案被退回，軍師正在重新修正降級版...")
-            revise_prompt = f"""軍師，你剛剛從歷史情報中挖出的 Top 10 提案被實務廠長逐篇無情批評了。
+            revise_prompt = f"""軍師，你剛剛從歷史情報中挖出的 Top 50 提案被實務廠長逐篇無情批評了。
 以下是廠長的審查意見：
 {critic_feedback}
 

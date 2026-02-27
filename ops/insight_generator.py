@@ -101,6 +101,11 @@ def load_today_intel(date_str: str) -> str:
         if score >= 30 or (note and "未命中" not in note and "No clear" not in note):
             filtered_entries.append(e)
 
+    # 防空保護：如果過濾後為空（可能是評分未執行），改用全部 entries 不過濾
+    if not filtered_entries:
+        LOGGER.warning("過濾後無任何情報（可能是評分未執行），改用全部 entries")
+        filtered_entries = entries
+
     sorted_entries = sorted(filtered_entries, key=get_score, reverse=True)
     
     # 取過濾後的所有高分生肉（Gemini Flash 容許額度內）
@@ -112,8 +117,8 @@ def load_today_intel(date_str: str) -> str:
         source = e.get('source_key', '')
         
         full_summary = e.get('summary_raw', '')
-        # 強制擷取至少 50% 的原文內文，最多不超過 2500 字，確保模型有深度的上下文判斷
-        read_len = max(int(len(full_summary) * 0.5), min(len(full_summary), 2500))
+        # 強制擷取至少 50% 的原文內文，但上限 2500 字（避免單篇極長文章超量）
+        read_len = min(max(int(len(full_summary) * 0.5), 200), 2500)
         summary = full_summary[:read_len]
         
         score = get_score(e)

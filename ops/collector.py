@@ -538,8 +538,11 @@ def main() -> None:
     
     LOGGER.info("正在對所有收集到的情報進行 P1-P4 痛點評分...")
     try:
+        import sys
+        sys.path.insert(0, str(ROOT))
         from ops.postprocessor import postprocess_papers
         postprocess_papers(payload)
+        LOGGER.info(f"評分完成，共 {sum(1 for e in payload if e.get('manufacturing_applicability_score', 0) >= 30)} 篇通過 30 分門檻")
     except Exception as exc:
         LOGGER.exception(f"情報評分後處理失敗: {exc}")
 

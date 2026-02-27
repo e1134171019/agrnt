@@ -43,7 +43,7 @@ def get_latest_raw_and_digest():
     
     # 從檔名解析日期，例如 raw-2026-02-26.json -> 2026-02-26
     date_str = latest_raw.stem.replace("raw-", "")
-    digest_file = OUT_DIR / f"digest-{date_str}.md"
+    digest_file = OUT_DIR / f"digest-{date_str}-main.md"
     
     if not digest_file.exists():
         LOGGER.warning(f"找到 {latest_raw.name} 但找不到對應的高階摘要 {digest_file.name}，將所有視為落網之魚！")
