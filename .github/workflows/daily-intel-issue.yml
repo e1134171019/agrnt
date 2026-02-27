@@ -28,8 +28,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
-          scrapling install
-          playwright install --with-deps chromium
+          python -m scrapling install-base
+          python -m playwright install --with-deps chromium
 
       - name: Run collector
         run: python ops/collector.py --date "${{ steps.meta.outputs.date }}"
