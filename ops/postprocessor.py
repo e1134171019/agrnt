@@ -8,24 +8,47 @@ from typing import Any, Dict, List
 
 LOGGER = logging.getLogger("postprocessor")
 
-# 製造業相關關鍵字
-MANUFACTURING_KEYWORDS = [
-    "manufactur", "sensor", "cnc", "robot", "assembly",
-    "digital twin", "predictive maintenance", "cad", "cam",
+# 研究問題對應關鍵字（對應 P1-P4 × 折床 × 板金 Brownfield）
+# P1 狀態不可觀測：感知/重建/深度/點雲/三維
+# P2 錯誤不可即時阻止：執行閘控/異常偵測/即時攔截
+# P3 經驗不可複製：持續學習/少樣本/知識蒸餾/師傅
+# P4 設計現場斷層：DXF/設計意圖/數位孿生/版本追蹤
+RESEARCH_KEYWORDS = [
+    # P1 感知層
+    "3d reconstruction", "depth", "point cloud", "rgb-d", "gaussian splatting",
+    "pose estimation", "object detection", "scene understanding", "slam",
+    "few-shot", "zero-shot", "imitation learning",
+    # P2 執行層
+    "anomaly detection", "real-time", "execution", "gating", "interrupt",
+    "fault detection", "quality control", "defect",
+    # P3 知識層
+    "continual learning", "incremental learning", "knowledge distillation",
+    "rag", "retrieval", "expert", "knowledge base", "transfer learning",
+    # P4 設計層
+    "digital twin", "cad", "dxf", "design intent", "version control",
+    "traceability", "manufacturing", "sheet metal", "bending",
 ]
 
 
 def _score_heuristic(text: str) -> tuple[int, str]:
-    """啟發式規則：依關鍵字命中數評分。"""
-    hits = sum(1 for kw in MANUFACTURING_KEYWORDS if kw in text)
-    score = min(100, 20 + hits * 20)
+    """啟發式規則：依研究問題關鍵字命中數評分（P1-P4）。"""
+    hits = sum(1 for kw in RESEARCH_KEYWORDS if kw in text)
+    score = min(100, 10 + hits * 15)
 
     notes: List[str] = []
-    if "sensor" in text:
-        notes.append("sensor integration likely")
-    if "cad" in text or "cam" in text:
-        notes.append("CAD/CAM relevance")
-    note = "; ".join(notes) or "No clear sensor/CAD integration detected"
+    # P1 感知層
+    if any(kw in text for kw in ["depth", "rgb-d", "point cloud", "3d reconstruction", "gaussian"]):
+        notes.append("P1命中:感知/重建")
+    # P2 執行層
+    if any(kw in text for kw in ["anomaly", "real-time", "fault", "defect", "gating"]):
+        notes.append("P2命中:異常偵測/即時攔截")
+    # P3 知識層
+    if any(kw in text for kw in ["continual", "incremental", "rag", "retrieval", "few-shot", "distill"]):
+        notes.append("P3命中:持續學習/知識")
+    # P4 設計層
+    if any(kw in text for kw in ["digital twin", "cad", "dxf", "traceability", "sheet metal", "bending"]):
+        notes.append("P4命中:設計意圖/版本")
+    note = "; ".join(notes) or "未命中P1-P4核心問題"
 
     return score, note
 
@@ -41,8 +64,13 @@ def _score_with_llm(text: str) -> tuple[int | None, str]:
 
         client = OpenAI(api_key=openai_key)
         prompt = (
-            f"請基於以下論文標題與摘要，給出一個 0-100 的 'manufacturing applicability' 分數，"
-            f"並在一到兩句話中說明是否涉及感測器整合或 CAD/CAM 集成（返回純文字）。\n\n{text}"
+            f"你正在協助一個板金折床工廠的工業互聯網研究，研究有四個核心問題：\n"
+            f"P1=現場狀態不可觀測（感知/重建/深度/點雲）\n"
+            f"P2=錯誤不可即時阻止（異常偵測/執行閘控/即時攔截）\n"
+            f"P3=師傅經驗不可複製（持續學習/少樣本/知識傳承/RAG）\n"
+            f"P4=設計端與現場斷層（DXF意圖橋接/版本追蹤/追溯）\n\n"
+            f"請基於以下論文標題與摘要，給出 0-100 的研究相關度分數，\n"
+            f"並用一句話說明命中了哪個問題（P1/P2/P3/P4）以及原因（返回純文字）。\n\n{text}"
         )
         resp = client.chat.completions.create(
             model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
@@ -72,7 +100,7 @@ def postprocess_paper(entry: Dict[str, Any]) -> None:
 
     entry["manufacturing_applicability_score"] = score
     if note:
-        entry["sensor_cad_integration_note"] = note
+        entry["research_problem_note"] = note
 
 
 def postprocess_papers(entries: List[Dict[str, Any]]) -> None:

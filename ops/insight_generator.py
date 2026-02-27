@@ -21,7 +21,7 @@ RESEARCH_DOCS = {
     "研究規劃說明書（P1-P4 × 130個問題 × 技術選型 × RBv3架構 × 優先缺口）": PROJECT_ROOT / "我的規劃.md",
 }
 
-# 分析框架 Prompt（不寫死任何硬體或架構，由研究文件本身提供上下文）
+# 分析框架 Prompt（缺口清單從研究文件動態讀取，不在此寫死）
 ANALYSIS_FRAMEWORK = """
 你是一位工業 5.0 × 中小企業製造 AI 的頂級首席技術長兼戰略幕僚。
 
@@ -46,13 +46,10 @@ ANALYSIS_FRAMEWORK = """
 
 ### 🧩 研究缺口是否仍存在
 
-> 根據你理解的研究架構，以下幾個高優先缺口今日是否有新的彌補：
-> - **E01 金屬反光深度失效**（視覺感知層核心難題）
-> - **B06 冷啟動零資料**（Brownfield 最大挑戰）
-> - **P4 DXF 意圖到現場的數位橋樑**（Layer 0 核心問題）
-> - **P3 師傅經驗數位化**（持續學習 / 少量樣本學習）
->
-> 對有命中的項目：說明新技術如何處理；對無命中的項目：標示「今日無新突破」
+> 請依據研究文件「4.3 核心解法架構」中列出的「尚未解決的關鍵缺口」，
+> 逐一檢查今日情報是否有新的彌補：
+> - 對有命中的項目：說明新技術如何處理
+> - 對無命中的項目：標示「今日無新突破」
 
 ---
 
@@ -127,10 +124,11 @@ def load_today_intel(date_str: str) -> str:
         source = e.get('source_key', '')
         summary = e.get('summary_raw', '')[:400]
         score = get_score(e)
-        note = e.get("sensor_cad_integration_note", "")
+        # 讀取新版 postprocessor 輸出的研究問題命中備註（相容舊欄位名）
+        note = e.get("research_problem_note", "") or e.get("sensor_cad_integration_note", "")
         
-        score_str = f" [製造相關度:{score:.0f}分]" if score > 0 else ""
-        note_str = f"\n   > LLM備註: {note}" if note and "No clear" not in note else ""
+        score_str = f" [研究相關度:{score:.0f}分]" if score > 0 else ""
+        note_str = f"\n   > P1-P4命中: {note}" if note and "未命中" not in note and "No clear" not in note else ""
         
         lines.append(f"[{i}] {title} ({source}){score_str}\n   摘要: {summary}{note_str}")
     
