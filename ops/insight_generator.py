@@ -16,12 +16,9 @@ OUT_DIR = PROJECT_ROOT / "out"
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 LOGGER = logging.getLogger(__name__)
 
-# 研究文件定義（使用者的核心知識庫）
+# 研究文件定義（唯一 context：我的規劃.md 已整合問題空間 + 技術選型 + 文獻對應 + RBv3架構）
 RESEARCH_DOCS = {
-    "研究規劃（6M1E × 130個問題 × P1-P4）": PROJECT_ROOT / "我的規劃.md",
-    "系統技術說明書（RBv3 × 三源共識 × 降級矩陣 × 硬體選型）": PROJECT_ROOT / "論文.md",
-    "MVP 階段技術路線圖（Phase-0 到 Phase-5）": PROJECT_ROOT / "mvp-Phase.md",
-    "67篇文獻摘要索引": PROJECT_ROOT / "文獻.md",
+    "研究規劃說明書（P1-P4 × 130個問題 × 技術選型 × RBv3架構 × 優先缺口）": PROJECT_ROOT / "我的規劃.md",
 }
 
 # 分析框架 Prompt（不寫死任何硬體或架構，由研究文件本身提供上下文）
@@ -83,9 +80,9 @@ def load_research_context() -> str:
             continue
         
         content = doc_path.read_text(encoding='utf-8')
-        # 限制每份文件最多 15,000 字元，避免超過 context window
-        if len(content) > 15000:
-            content = content[:15000] + "\n\n...(文件過長，已截取前段)\n"
+        # 唯一 context 文件，給足夠空間（25,000 字元）
+        if len(content) > 25000:
+            content = content[:25000] + "\n\n...(文件過長，已截取前段)\n"
         
         context_parts.append(f"## {doc_name}\n\n{content}")
         LOGGER.info(f"載入研究文件: {doc_name} ({len(content)} 字元)")
