@@ -104,10 +104,9 @@ def postprocess_paper(entry: Dict[str, Any]) -> None:
 
 
 def postprocess_papers(entries: List[Dict[str, Any]]) -> None:
-    """對所有 papers 類別的 entries 進行後處理。"""
+    """對所有的 entries 進行後處理（評分與痛點標記）。"""
     for entry in entries:
-        if (entry.get("category") or "").lower() == "papers":
-            try:
-                postprocess_paper(entry)
-            except Exception:
-                LOGGER.exception("論文後處理步驟發生異常，跳過此筆")
+        try:
+            postprocess_paper(entry)
+        except Exception:
+            LOGGER.exception("後處理步驟發生異常，跳過此筆")

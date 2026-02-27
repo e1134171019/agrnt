@@ -250,12 +250,7 @@ def main() -> None:
         LOGGER.error("JSON 沒有資料，無法產出摘要")
         sys.exit(2)
 
-    # 後處理：對 papers 類別進行 manufacturing applicability 評分
-    try:
-        from ops.postprocessor import postprocess_papers
-        postprocess_papers(entries)
-    except Exception:
-        LOGGER.exception("論文後處理步驟發生異常，繼續生成摘要")
+
 
     main_entries, cad_entries = split_entries(entries)
     

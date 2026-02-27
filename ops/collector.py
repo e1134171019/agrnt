@@ -535,6 +535,14 @@ def main() -> None:
 
     merged = merge_entries(collected)
     payload = build_payload(merged)
+    
+    LOGGER.info("正在對所有收集到的情報進行 P1-P4 痛點評分...")
+    try:
+        from ops.postprocessor import postprocess_papers
+        postprocess_papers(payload)
+    except Exception as exc:
+        LOGGER.exception(f"情報評分後處理失敗: {exc}")
+
     unique_entries = len(payload)
     dedup_rate = 0.0 if raw_entries_count == 0 else (raw_entries_count - unique_entries) / raw_entries_count
     category_counts = Counter(entry.get("category", "未分類") or "未分類" for entry in payload)
