@@ -27,9 +27,9 @@ ANALYSIS_FRAMEWORK = """
 
 你的任務是：
 **閱讀「研究者的核心文件」，理解其正在驗證的方法論與技術架構，
-然後掃描「今日最新 AI 情報列表」，挑選出最精華的 5 篇重點情報，並針對每一篇提出落地方案。**
+然後掃描「今日最新 AI 情報列表」，挑選出最精華的 50 篇重點情報，並針對每一篇提出落地方案。**
 
-分析輸出必須嚴格遵守以下格式（請列出 TOP 1 到 TOP 5）：
+分析輸出必須嚴格遵守以下格式（請列出 TOP 1 到 TOP 50）：
 
 ---
 ### 📍 TOP 1: [文章標題或工具名稱]
@@ -37,7 +37,7 @@ ANALYSIS_FRAMEWORK = """
 - **命中缺口：** 對應你研究中的哪個 Phase / Layer / 問題編號（如 E01、H01...）
 - **初步戰略提案：** 這項新技術相比現有選型多了什麼能力？建議在我們的研究中如何應用（請給出具體實驗或落地做法）？
 
-### 📍 TOP 2... (以此類推，直到挑滿 5 篇，若不足 5 篇則有幾篇列幾篇)
+### 📍 TOP 2... (以此類推，直到挑滿 50 篇，若不足 50 篇則有幾篇列幾篇)
 ---
 
 寫作風格：直接、犀利、必須基於研究文件的具體內容（引用問題編號/Phase/Layer）。
@@ -93,14 +93,19 @@ def load_today_intel(date_str: str) -> str:
 
     sorted_entries = sorted(entries, key=get_score, reverse=True)
     
-    # 取前 80 篇（Gemini 1.5/2.0 Flash 有 1M Token，足以容納）
-    top_entries = sorted_entries[:80]
+    # 不設限，把當日所有收集到的百篇生肉全數投入初篩池（Gemini Flash 百萬 Token 足以吃下數百篇）
+    top_entries = sorted_entries[:500]
     
     lines = []
     for i, e in enumerate(top_entries, 1):
         title = e.get('title', '(無標題)')
         source = e.get('source_key', '')
-        summary = e.get('summary_raw', '')[:400]
+        
+        full_summary = e.get('summary_raw', '')
+        # 強制擷取至少 50% 的原文內文，最多不超過 2500 字，確保模型有深度的上下文判斷
+        read_len = max(int(len(full_summary) * 0.5), min(len(full_summary), 2500))
+        summary = full_summary[:read_len]
+        
         score = get_score(e)
         # 讀取新版 postprocessor 輸出的研究問題命中備註（相容舊欄位名）
         note = e.get("research_problem_note", "") or e.get("sensor_cad_integration_note", "")
@@ -161,7 +166,7 @@ def generate_insights(date_str: str) -> None:
 
         # --- Critic Phase ---
         critic_prompt = f"""你是一位老派的工廠廠長兼工業 5.0 架構師（魔鬼審查員）。
-你的任務是無情檢視 AI 戰略軍師推薦的「Top 5 重點情報戰略」，逐篇（逐一）抓出它們無法在 Brownfield 老工廠落地的缺點。
+你的任務是無情檢視 AI 戰略軍師推薦的「Top 50 重點情報戰略」，逐篇（逐一）抓出它們無法在 Brownfield 老工廠落地的缺點。
 
 你的考核基準（極限條件 Checklist）：
 1. 邊緣算力限制：系統只能跑在 Jetson Orin Nano 8GB 上（大型 LLM / Transformer 難以負荷）。
@@ -170,7 +175,7 @@ def generate_insights(date_str: str) -> None:
 4. 感測噪聲預期：金屬會反光、現場有油污粉塵，純 RGB 高精度依賴會失效。
 5. 硬體改裝禁忌：不准改動機器原廠的安全迴路與硬體。
 
-以下是軍師提出的 Top 5 初步戰略：
+以下是軍師提出的 Top 50 初步戰略：
 {initial_insight}
 
 請針對這幾個提案「逐一篇章」給出評估。格式必須如下：
@@ -191,7 +196,7 @@ def generate_insights(date_str: str) -> None:
         # --- Revision Phase ---
         if "REJECT" in critic_feedback.upper():
             LOGGER.info("有提案被退回，軍師正在進行逐篇自我修正 (Reflection)...")
-            revise_prompt = f"""軍師，你先前的 Top 5 戰略提案已經被具有實務經驗的廠長（魔鬼審查員）逐篇審查並給予無情批評。
+            revise_prompt = f"""軍師，你先前的 Top 50 戰略提案已經被具有實務經驗的廠長（魔鬼審查員）逐篇審查並給予無情批評。
 以下是廠長的逐篇審查意見：
 {critic_feedback}
 
@@ -208,7 +213,7 @@ def generate_insights(date_str: str) -> None:
 - **命中缺口：** ...
 - **最終可落地方案 (經廠長審查)：** (結合你的原意與廠長的限制，給出最務實的做法)
 
-### 📍 TOP 2... (依此類推)
+### 📍 TOP 2... (依此類推，直到挑滿 50 篇)
 """
             revise_response = client.models.generate_content(
                 model='gemini-2.5-flash',

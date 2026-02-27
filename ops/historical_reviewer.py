@@ -2,8 +2,11 @@ import os
 import json
 import logging
 import subprocess
+import time
+import requests
 from pathlib import Path
 from google import genai
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 import markdown
 from playwright.sync_api import sync_playwright
 
@@ -37,32 +40,67 @@ def load_research_context() -> str:
     
     return "\n\n---\n\n".join(context_parts)
 
-def fetch_historical_issues() -> list:
-    """使用 GitHub CLI 抓取過去 100 篇 issue 的內容"""
-    LOGGER.info("正在從 GitHub 抓取過去 100 篇 Issue 內容...")
+def fetch_raw_intel_entries() -> list:
+    """從 out 目錄讀取收集器抓下來的原始情報 JSON"""
+    LOGGER.info("正在從本地抓取原始情報 (生肉貼文)...")
+    entries = []
     try:
-        result = subprocess.run(
-            ["gh", "issue", "list", "--state", "all", "--limit", "100", "--json", "title,body"],
-            capture_output=True,
-            text=True,
-            check=True
-        )
-        issues = json.loads(result.stdout)
-        # 過濾出 [Digest - Main] 或是包含大量摘要的 issue
-        intel_issues = [iss for iss in issues if "摘要" in iss.get("title", "") or "Digest" in iss.get("title", "")]
-        LOGGER.info(f"成功抓取 {len(issues)} 篇 Issue，其中符合情報特徵的有 {len(intel_issues)} 篇。")
-        return intel_issues
+        if OUT_DIR.exists():
+            # 找到最新的 raw json 或讀取全部
+            for json_file in OUT_DIR.glob("raw-*.json"):
+                with open(json_file, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    entries.extend(data.get("entries", []))
+        LOGGER.info(f"成功抓取 {len(entries)} 篇原始生肉情報。")
+        return entries
     except Exception as exc:
-        LOGGER.error(f"抓取 GitHub Issues 失敗: {exc}")
+        LOGGER.error(f"讀取本地原始情報失敗: {exc}")
         return []
 
-def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: str, client: genai.Client) -> str:
-    LOGGER.info(f"== 開始會審 Batch {batch_idx} ==")
+@retry(wait=wait_exponential(multiplier=15, min=30, max=120), stop=stop_after_attempt(5))
+def generate_content_with_retry(client, prompt: str) -> str:
+    """封裝 Gemini API 呼叫並加入重試機制，專門應對 429 限制"""
+    return client.models.generate_content(model='gemini-2.5-flash', contents=prompt).text
+
+def ask_ollama(prompt: str, model="qwen2.5:14b") -> str:
+    """呼叫本機 Ollama API"""
+    url = "http://localhost:11434/api/generate"
+    payload = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {
+            "num_ctx": 16384  # 放寬 Context Window，以防 15 篇原始貼文過長
+        }
+    }
+    try:
+        # 長時間等待推論，5070 Ti 跑 14B 大約需幾秒到幾十秒
+        response = requests.post(url, json=payload, timeout=240)
+        response.raise_for_status()
+        return response.json().get("response", "")
+    except Exception as e:
+        LOGGER.error(f"本機 Ollama API 呼叫失敗: {e}")
+        return ""
+
+def generate_content_hybrid(client, prompt: str, role_name: str) -> str:
+    """混合架構：嘗試 Ollama 主力，失敗或產出過短 (判斷為品質不佳) 時 Fallback 至 Gemini"""
+    LOGGER.info(f"[{role_name}] 嘗試優先調用本機 Ollama 引擎 (qwen2.5:14b)...")
+    ollama_txt = ask_ollama(prompt)
     
-    # 1. 戰略軍師 Prompt (萃取 Top 5)
+    # 判斷 Fallback 條件：如果報錯為空字串，或者產出過度簡短(少於 50 字) 視為解釋不好
+    if not ollama_txt or len(ollama_txt) < 50:
+        LOGGER.warning(f"[{role_name}] ⚠️ 本機模型產出異常或品質過低 (字數: {len(ollama_txt)})，啟動 Gemini API 備援支援！")
+        gemini_txt = generate_content_with_retry(client, prompt)
+        return gemini_txt
+    return ollama_txt
+
+def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: str, client: genai.Client) -> str:
+    LOGGER.info(f"== 開始會審 Batch {batch_idx} == (Hybrid 架構：Ollama 主力 / Gemini 備援)")
+    
+    # 1. 戰略軍師 Prompt (萃取 Top 10)
     strategist_prompt = f"""你是一位工業 5.0 × 中小企業製造 AI 的頂級首席技術長兼戰略幕僚。
 你的任務是：閱讀「核心研究文件」，並從我提供的「歷史情報總匯 (包含多篇大雜燴的新聞摘要)」中，
-挖掘出最精華、最能填補我們研究缺口的 5 篇重點科技或論文。
+挖掘出最精華、最能填補我們研究缺口的 10 篇重點科技或論文。
 
 === 研究核心文件 ===
 {research_context}
@@ -70,46 +108,48 @@ def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: st
 === 本批次歷史情報 ===
 {batch_text}
 
-請嚴格輸出以下格式的 Top 5 戰略提案：
+請嚴格輸出以下格式的 Top 10 戰略提案：
 ### 📍 TOP 1: [文章標題或工具名稱]
 - **內容摘要：** 簡要描述這是什麼技術
 - **命中缺口：** 對應研究中的哪個問題編號（如 E01、P1...）
 - **初步戰略提案：** 這項新技術有何特點？建議在我們的研究中如何應用？
 
-### 📍 TOP 2... (以此類推)
+### 📍 TOP 2... (以此類推，直到挑滿 10 篇)
 """
     try:
         LOGGER.info(f"Batch {batch_idx} - 軍師正在篩選精華...")
-        resp1 = client.models.generate_content(model='gemini-2.5-flash', contents=strategist_prompt)
-        initial_insight = resp1.text
+        initial_insight = generate_content_hybrid(client, strategist_prompt, "戰略軍師")
+        time.sleep(1) # 稍微緩衝
         
         # 2. 廠長魔鬼審查 Prompt
-        critic_prompt = f"""你是一位老派的工廠廠長兼工業 5.0 架構師（魔鬼審查員）。
-無情檢視 AI 戰略軍師剛從歷史文獻中挖出來的「Top 5 戰略提案」，逐篇抓出它們無法在 Brownfield (老式折床工廠) 落地的缺點。
+        critic_prompt = f"""你是一位深諳工廠實務的廠長兼工業 5.0 架構師（魔鬼審查員）。
+請嚴格檢視 AI 戰略軍師提出的「Top 10 戰略提案」。你的審查核心不再是單純的硬體算力規格，而是基於我們《中小企業板金製造現場智慧化系統 研究說明書》定義的根本環境與痛點，並且以實務軟體工程師的角度戳破學術界的幻想。
 
-你的考核基準（極限條件 Checklist）：
-1. 邊緣算力限制：系統只能跑在 Jetson Orin Nano 8GB 上。
-2. 網路環境極限：工廠內部網路不穩，影響機台作動的推論必須離線。
-3. 即時性要求：端到端延遲 (E2E Latency) 不能超過 2 秒。
-4. 感測噪聲預期：金屬會反光、現場有油污粉塵。
-5. 硬體改裝禁忌：不准改動機器原廠的安全迴路與硬體。
+=== 我們的核心研究計畫 (Brownfield 升級藍圖) ===
+{research_context}
 
-以下是軍師提出的 Top 5 歷史精華戰略：
+你的考核基準（戰略與實務交火）：
+1. 開源可用性與落地度 (大屠殺條件，最重要)：請嚴厲質疑這篇文章提到的技術【到底有沒有釋出實際的開源套件 (GitHub/HuggingFace)】？還是只是微軟/Google/大學實驗室發表的「紙上談兵」、「只聞樓梯響的發表會模型」？如果沒有實用程式碼資源、不給權重，完全無法在我們工廠 clone 下來使用，一律直接 REJECT！
+2. Brownfield 物理與環境抗性：提案是否忽略了我們工廠的致命環境條件？例如：金屬嚴重反光 (B08)、冷啟動根本沒有大量標註資料可訓練 (B06)、老機台不准改動安全迴路與設備 (B01/B02)？
+3. 實務生產節奏衝擊：系統要求是否會打亂師傅的步調 (B05)？端到端延遲是否會嚴重拖慢製程 (B12，即使我們後台有 RTX 5070 Ti 可以卸載運算，但廠內網路不穩 B03 仍是一大挑戰)？系統犯錯時會不會亂攔截導致師傅暴怒不用 (B13)？
+4. 與目前架構的相容性：該提案是否與我們設計的「事件化證據鏈 (RBv3)」、「多代理人 (Agentic AI)」的戰略重點相容？
+
+以下是軍師提出的 Top 10 歷史精華戰略：
 {initial_insight}
 
 請逐篇評估，格式如下：
 ### 審查 TOP X: [文章標題]
 - **【判定結果】**: PASS 或 REJECT
-- **【廠長嚴批】**: (詳細說明理由，若 REJECT 請點出違反哪條底線)
+- **【廠長嚴批】**: (詳細說明理由，請強迫自己結合上述的 Brownfield 痛點編號 B01~B15 或是開源性進行駁火攻擊)
 """
         LOGGER.info(f"Batch {batch_idx} - 廠長正在進行魔鬼極限審查...")
-        resp2 = client.models.generate_content(model='gemini-2.5-flash', contents=critic_prompt)
-        critic_feedback = resp2.text
+        critic_feedback = generate_content_hybrid(client, critic_prompt, "機車廠長")
+        time.sleep(1) # 稍微緩衝
         
         # 3. 戰略軍師自我修正 (Reflection)
         if "REJECT" in critic_feedback.upper():
             LOGGER.info(f"Batch {batch_idx} - 有提案被退回，軍師正在重新修正降級版...")
-            revise_prompt = f"""軍師，你剛剛從歷史情報中挖出的 Top 5 提案被實務廠長逐篇無情批評了。
+            revise_prompt = f"""軍師，你剛剛從歷史情報中挖出的 Top 10 提案被實務廠長逐篇無情批評了。
 以下是廠長的審查意見：
 {critic_feedback}
 
@@ -125,15 +165,15 @@ def run_multi_agent_review(batch_idx: int, batch_text: str, research_context: st
 - **原始技術發現：** ...
 - **最終可落地方案 (經廠長審查)：** (結合你的原意與廠長的限制，給出最務實的做法，並標註可部署在哪個節點)
 """
-            resp3 = client.models.generate_content(model='gemini-2.5-flash', contents=revise_prompt)
-            final_insight = resp3.text
+            final_insight = generate_content_hybrid(client, revise_prompt, "戰略軍師(修正版)")
+            time.sleep(1) # 稍微緩衝
         else:
             final_insight = initial_insight + f"\n\n*(全數通過廠長審查)*\n{critic_feedback}"
             
         return final_insight
 
     except Exception as exc:
-        LOGGER.error(f"Batch {batch_idx} 呼叫 Gemini API 失敗: {exc}")
+        LOGGER.error(f"Batch {batch_idx} 多次嘗試呼叫 Gemini API 仍舊失敗，略過此批次: {exc}")
         return ""
 
 def main():
@@ -146,15 +186,19 @@ def main():
     if not research_context:
         return
 
-    issues = fetch_historical_issues()
+    issues = fetch_raw_intel_entries()
     if not issues:
-        LOGGER.info("無可用 Issue 進行歷史大會審。")
+        LOGGER.info("無可用原始情報進行大會審。")
         return
+        
+    # --- 依指揮官指示：將範圍放到前 500 篇生肉 ---
+    LOGGER.info("⚠️ 偵測到指示：直接吞吐 500 篇原始生肉貼文。")
+    issues = issues[:500]
 
     client = genai.Client(api_key=api_key)
     
-    # Batch Processing: 將 Issue 切分為每 5 篇一綑 (Batch)
-    batch_size = 5
+    # Batch Processing: 將切分為每 15 篇一綑 (Batch)
+    batch_size = 15
     all_distilled_insights = []
     
     for i in range(0, len(issues), batch_size):
@@ -165,9 +209,10 @@ def main():
         batch_text_parts = []
         for iss in batch_issues:
             title = iss.get('title', '無標題')
-            body = iss.get('body', '')
-            # 擷取部分摘要即可，避免單篇內文過長
-            batch_text_parts.append(f"## {title}\n{body[:8000]}") # 取前 8000 字
+            body = iss.get('summary_raw', '')
+            url = iss.get('url', '')
+            source = iss.get('source', '')
+            batch_text_parts.append(f"## {title}\n來源: {source} ({url})\n{body[:2500]}") # 放寬到 2500 字，確保完整性
         
         batch_text_combined = "\n\n".join(batch_text_parts)
         
