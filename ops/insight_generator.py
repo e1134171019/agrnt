@@ -91,9 +91,19 @@ def load_today_intel(date_str: str) -> str:
         except (TypeError, ValueError):
             return 0.0
 
-    sorted_entries = sorted(entries, key=get_score, reverse=True)
+    # 過濾：過濾掉分數 < 30 且未命中 P1-P4 痛點的垃圾情報
+    filtered_entries = []
+    for e in entries:
+        score = get_score(e)
+        note = e.get("research_problem_note", "") or e.get("sensor_cad_integration_note", "")
+        
+        # 保留分數 >= 30，或是明確命中痛點的文章
+        if score >= 30 or (note and "未命中" not in note and "No clear" not in note):
+            filtered_entries.append(e)
+
+    sorted_entries = sorted(filtered_entries, key=get_score, reverse=True)
     
-    # 不設限，把當日所有收集到的百篇生肉全數投入初篩池（Gemini Flash 百萬 Token 足以吃下數百篇）
+    # 取過濾後的所有高分生肉（Gemini Flash 容許額度內）
     top_entries = sorted_entries[:500]
     
     lines = []
