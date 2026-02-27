@@ -8,39 +8,63 @@ from typing import Any, Dict, List
 
 LOGGER = logging.getLogger("postprocessor")
 
-# 研究問題對應關鍵字（對應 P1-P4 × 折床 × 板金 Brownfield）
+# 研究問題對應關鍵字（對應 P1-P4 × 6M1E × 130 個問題 × 折床 × 板金 Brownfield）
 # P1 狀態不可觀測：感知/重建/深度/點雲/三維
 # P2 錯誤不可即時阻止：執行閘控/異常偵測/即時攔截
 # P3 經驗不可複製：持續學習/少樣本/知識蒸餾/師傅
 # P4 設計現場斷層：DXF/設計意圖/數位孿生/版本追蹤
+# H 人維度：知識傳承/培訓/技能矩陣/人機互動
+# M 機維度：老機台/PLC/感測器/預防保養/稼動率
+# R 料維度：材料追溯/批號/材證/彈回量
+# F 法維度：版本控制/SOP/NC程式/工程變更
+# Q 測維度：量測/首件檢驗/品質追溯/OEE/Cpk
+# E 環維度：金屬反光/光源/油膜/溫濕度
 RESEARCH_KEYWORDS = [
     # P1 感知層
     "3d reconstruction", "depth", "point cloud", "rgb-d", "gaussian splatting",
     "pose estimation", "object detection", "scene understanding", "slam",
     "few-shot", "zero-shot", "imitation learning",
     # P2 執行層
-    "anomaly detection", "real-time", "execution", "gating", "interrupt",
+    "anomaly detection", "execution", "gating", "interrupt",
     "fault detection", "quality control", "defect",
     # P3 知識層
     "continual learning", "incremental learning", "knowledge distillation",
     "rag", "retrieval", "expert", "knowledge base", "transfer learning",
     # P4 設計層
     "digital twin", "cad", "dxf", "design intent", "version control",
-    "traceability", "manufacturing", "sheet metal", "bending",
+    "traceability", "sheet metal", "bending",
+    # H 人維度：知識傳承與人機互動
+    "knowledge transfer", "tacit knowledge", "apprentice", "skill assessment",
+    "human-robot", "operator training", "worker assistance", "ar guidance",
+    "augmented reality", "human-in-the-loop",
+    # M 機維度：老機台與設備狀態
+    "legacy equipment", "plc", "retrofit", "brownfield", "predictive maintenance",
+    "machine monitoring", "opc-ua", "edge computing", "jetson",
+    # R 料維度：材料追溯與特性
+    "material traceability", "batch tracking", "material certificate",
+    "springback", "material property", "alloy",
+    # F 法維度：版本控制與製程標準
+    "nc program", "sop", "ecn", "engineering change", "process planning",
+    "cam", "nesting", "toolpath",
+    # Q 測維度：品質量測與統計
+    "first article inspection", "cpk", "oee", "measurement", "metrology",
+    "statistical process control", "spc", "dimensional inspection",
+    # E 環維度：環境感知
+    "specular reflection", "lighting", "dust", "contamination",
 ]
 
 
 def _score_heuristic(text: str) -> tuple[int, str]:
-    """啟發式規則：依研究問題關鍵字命中數評分（P1-P4）。"""
+    """啟發式規則：依研究問題關鍵字命中數評分（P1-P4 + 6M1E）。"""
     hits = sum(1 for kw in RESEARCH_KEYWORDS if kw in text)
-    score = min(100, 10 + hits * 15)
+    score = min(100, 10 + hits * 12)
 
     notes: List[str] = []
     # P1 感知層
     if any(kw in text for kw in ["depth", "rgb-d", "point cloud", "3d reconstruction", "gaussian"]):
         notes.append("P1命中:感知/重建")
     # P2 執行層
-    if any(kw in text for kw in ["anomaly", "real-time", "fault", "defect", "gating"]):
+    if any(kw in text for kw in ["anomaly", "fault", "defect", "gating"]):
         notes.append("P2命中:異常偵測/即時攔截")
     # P3 知識層
     if any(kw in text for kw in ["continual", "incremental", "rag", "retrieval", "few-shot", "distill"]):
@@ -48,7 +72,25 @@ def _score_heuristic(text: str) -> tuple[int, str]:
     # P4 設計層
     if any(kw in text for kw in ["digital twin", "cad", "dxf", "traceability", "sheet metal", "bending"]):
         notes.append("P4命中:設計意圖/版本")
-    note = "; ".join(notes) or "未命中P1-P4核心問題"
+    # H 人維度
+    if any(kw in text for kw in ["knowledge transfer", "tacit knowledge", "apprentice", "operator training", "ar guidance", "augmented reality"]):
+        notes.append("H命中:知識傳承/人機互動")
+    # M 機維度
+    if any(kw in text for kw in ["legacy equipment", "plc", "retrofit", "brownfield", "predictive maintenance", "edge computing"]):
+        notes.append("M命中:老機台/設備狀態")
+    # R 料維度
+    if any(kw in text for kw in ["material traceability", "batch tracking", "springback", "material property"]):
+        notes.append("R命中:材料追溯/特性")
+    # F 法維度
+    if any(kw in text for kw in ["nc program", "sop", "ecn", "process planning", "cam", "nesting"]):
+        notes.append("F命中:版本控制/製程")
+    # Q 測維度
+    if any(kw in text for kw in ["first article inspection", "cpk", "oee", "metrology", "spc"]):
+        notes.append("Q命中:品質量測/統計")
+    # E 環維度
+    if any(kw in text for kw in ["specular reflection", "lighting", "dust", "contamination"]):
+        notes.append("E命中:環境感知")
+    note = "; ".join(notes) or "未命中P1-P4或6M1E核心問題"
 
     return score, note
 
