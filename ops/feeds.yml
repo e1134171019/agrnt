@@ -613,7 +613,7 @@ sources:
             - "bending"
             - "press-brake"
             - "fabrication"
-          enabled: true
+          enabled: false  # 403 Forbidden，對方封鎖爬蟲
           limit: 15
 
         # Manufacturing Engineering — SME 官方期刊（製造業 AI 應用）
@@ -627,7 +627,7 @@ sources:
             - "AI"
             - "automation"
             - "sheet-metal"
-          enabled: true
+          enabled: false  # 404 Not Found，RSS 網址已失效
           limit: 10
 
         # arXiv 工業工程 / 製造系統（折彎規劃、DFM）
