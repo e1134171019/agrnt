@@ -27,15 +27,18 @@ try:
 except ImportError as exc:
     raise SystemExit("請先安裝 PyYAML：pip install pyyaml") from exc
 
-# 新增：導入 web_crawler
+# 導入 web_crawler（相容 `python ops/collector.py` 與 `python -m ops.collector` 兩種執行方式）
 try:
-    from ops.web_crawler import fetch_web_source
+    from ops.web_crawler import fetch_web_source  # 從專案根目錄執行時
 except ImportError:
-    def fetch_web_source(source):
-        logging.getLogger("collector").warning(
-            "web_crawler.py 未找到，跳過：%s", source.get("name")
-        )
-        return []
+    try:
+        from web_crawler import fetch_web_source  # 從 ops/ 目錄執行時
+    except ImportError:
+        def fetch_web_source(source):
+            logging.getLogger("collector").warning(
+                "web_crawler.py 未找到，跳過：%s", source.get("name")
+            )
+            return []
 
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 FEEDS_PATH = ROOT / "ops" / "feeds.yml"
