@@ -541,7 +541,6 @@ def main() -> None:
     
     LOGGER.info("正在對所有收集到的情報進行 P1-P4 痛點評分...")
     try:
-        import sys
         sys.path.insert(0, str(ROOT))
         from ops.postprocessor import postprocess_papers
         postprocess_papers(payload)

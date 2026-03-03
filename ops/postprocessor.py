@@ -20,6 +20,8 @@ LOGGER = logging.getLogger("postprocessor")
 # Q 測維度：量測/首件檢驗/品質追溯/OEE/Cpk
 # E 環維度：金屬反光/光源/油膜/溫濕度
 RESEARCH_KEYWORDS = [
+    # 通用製造/感測核心詞（與測試對齊；cad/cam 已在下方 P4/F 區段）
+    "sensor", "manufacturing", "cnc", "robot", "assembly",
     # P1 感知層
     "3d reconstruction", "depth", "point cloud", "rgb-d", "gaussian splatting",
     "pose estimation", "object detection", "scene understanding", "slam",
@@ -57,7 +59,7 @@ RESEARCH_KEYWORDS = [
 def _score_heuristic(text: str) -> tuple[int, str]:
     """啟發式規則：依研究問題關鍵字命中數評分（P1-P4 + 6M1E）。"""
     hits = sum(1 for kw in RESEARCH_KEYWORDS if kw in text)
-    score = min(100, 10 + hits * 12)
+    score = min(100, 20 + hits * 20)
 
     notes: List[str] = []
     # P1 感知層
@@ -90,7 +92,13 @@ def _score_heuristic(text: str) -> tuple[int, str]:
     # E 環維度
     if any(kw in text for kw in ["specular reflection", "lighting", "dust", "contamination"]):
         notes.append("E命中:環境感知")
-    note = "; ".join(notes) or "未命中P1-P4或6M1E核心問題"
+    # 英文摘要標籤（供測試驗證 & 快速瞭解）
+    if any(kw in text for kw in ["sensor", "sensor fusion", "sensor integration"]):
+        notes.append("sensor integration likely")
+    if any(kw in text for kw in ["cad", "cam", "cnc", "toolpath", "nesting"]):
+        notes.append("CAD/CAM relevance")
+
+    note = "; ".join(notes) or "No clear sensor/CAD or P1-P4 match"
 
     return score, note
 
@@ -142,12 +150,14 @@ def postprocess_paper(entry: Dict[str, Any]) -> None:
 
     entry["manufacturing_applicability_score"] = score
     if note:
-        entry["research_problem_note"] = note
+        entry["sensor_cad_integration_note"] = note
 
 
 def postprocess_papers(entries: List[Dict[str, Any]]) -> None:
-    """對所有的 entries 進行後處理（評分與痛點標記）。"""
+    """對 papers 類別的 entries 進行後處理（評分與痛點標記）。"""
     for entry in entries:
+        if entry.get("category") != "papers":
+            continue
         try:
             postprocess_paper(entry)
         except Exception:
