@@ -1,0 +1,62 @@
+name: gap-analysis
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-gap-analysis:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run 67-paper × T01-T17 gap analysis
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: |
+          python analyze_gaps.py
+
+      - name: Read report
+        id: report
+        run: |
+          DATE=$(date +%Y-%m-%d)
+          REPORT_FILE="out/gap_analysis_${DATE}.md"
+          if [ -f "$REPORT_FILE" ]; then
+            # GitHub Issue body 上限 65536 bytes，取前 60000 字元
+            CONTENT=$(head -c 60000 "$REPORT_FILE")
+            # 使用 heredoc 避免特殊字元問題
+            echo "content<<GAPREPORT_EOF" >> "$GITHUB_OUTPUT"
+            echo "$CONTENT" >> "$GITHUB_OUTPUT"
+            echo "GAPREPORT_EOF" >> "$GITHUB_OUTPUT"
+            echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          else
+            echo "report file not found"
+            exit 1
+          fi
+
+      - name: Create GitHub Issue with gap analysis report
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const content = `${{ steps.report.outputs.content }}`;
+            const date = `${{ steps.report.outputs.date }}`;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `📊 [研究規劃] 67篇文獻 × T01-T17 待決清單比對報告 ${date}`,
+              body: content,
+              labels: ['research-planning', 'gap-analysis']
+            });
