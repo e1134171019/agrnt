@@ -298,15 +298,80 @@ def generate_insights(date_str: str) -> None:
             contents=revise_prompt
         )
         final_insight = revise_response.text
+        LOGGER.info("整合報告完成。正在進行 Phase-5：規劃更新建議（T01-T17 待決清單比對）...")
+
+        # --- Phase 5：規劃更新廠長（對照 T01-T17 技術待決清單）---
+        planning_update_prompt = f"""你是研究計畫的「規劃更新廠長」。
+
+你的任務：閱讀今天的 SIGNAL 論文，對照「Phase-1 技術待決清單（T01-T17）」，
+判斷今天有哪些新論文**可以幫助填寫某個待決項目**。
+
+## 技術待決清單（T01-T17）：
+
+| 編號 | 待決問題 |
+|------|---------|
+| T01 | 金屬鏡面 E01：Jetson 8GB 上能否在 ≤2秒內完成深度補全？需要哪個實作？ |
+| T02 | 3DGS 建圖方案：哪個實作？每次換線需要重建嗎？建圖時間？ |
+| T03 | 多相機 Rig 標定：換線後是否需要重標？W-Shift 能補多大偏差？ |
+| T04 | BBB PRU 邊沿時戳精度：jitter 實測值是多少？±300ms 對齊夠嗎？ |
+| T05 | plc.edge → Jetson 傳輸協議：UDP vs MQTT，端到端延遲多少？ |
+| T06 | Jetson 8GB 三源共識全管線延遲：3DGS 渲染 + 比對 + 投票實際多少 ms？ |
+| T07 | 步驟辨識模型選型：ProgressLM-3B / LLaVA-7B / 其他？幾 bit 量化？ |
+| T08 | P4 主線路線：A（DXF解析工序）/ B（補生成DXF）/ C（VLM直接理解）？ |
+| T09 | file_pfid 算法：對哪些幾何特徵 hash？不同 CAD 軟體 DXF 格式一致嗎？ |
+| T10 | 持續學習觸發時機：每班結束？每週？累積 N 個異常事件？ |
+| T11 | Jetson 8GB 持續學習記憶體預算：骨幹多少 GB？replay buffer 多少？ |
+| T12 | Unity 合成資料 domain gap：需要多少真實圖才能 fine-tune 到可用？ |
+| T13 | 最小標注集：不依賴 Unity，最少標注幾張圖才能冷啟動？ |
+| T14 | RBv3 存儲格式：SQLite vs InfluxDB vs JSON？單日 100 折 = 多少 GB？ |
+| T15 | A/B 對照實驗：如何定義邊界？需要多少折彎樣本才達統計顯著？ |
+| T16 | E2E latency：P50 和 P95 各要達到多少才算 Phase-1 合格？ |
+| T17 | 可追溯覆蓋率 Coverage ≥ 多少才能說 Phase-1 成立？ |
+
+## 今日 SIGNAL 論文（可立即行動 + 待碼追蹤）：
+{final_insight}
+
+## 你的任務：
+
+對每篇 SIGNAL 論文，判斷它是否能幫助回答上面任何一個 T 編號的待決問題。
+
+**輸出格式：**
+
+## 📋 規劃待決更新建議
+
+### 🟢 可填寫（今天的論文直接回答了待決問題）
+- **[T編號] [待決問題簡述]**
+  - 依據論文：[論文標題]
+  - 建議填入：[具體的技術選型建議或數值，一到三句話]
+  - 信心度：高 / 中 / 低（說明為何）
+
+### 🟡 部分澄清（今天的論文提供了線索，但還不夠確定）
+- **[T編號] [待決問題簡述]**
+  - 依據論文：[論文標題]
+  - 澄清了什麼：[一句話]
+  - 還需要什麼才能完全確定：[一句話]
+
+### 🔴 今日無相關（沒有新論文能幫助任何待決項目）
+（如果所有 SIGNAL 論文都無法回答任何 T 編號，直接寫此標題後說明原因）
+
+注意：請只輸出這個格式的規劃更新建議區塊，不要重複整份情報報告。
+"""
+        planning_update_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=planning_update_prompt
+        )
+        planning_update = planning_update_response.text
+        LOGGER.info("規劃更新建議（T01-T17 比對）完成。")
+
         debate_log = (
             f"\n\n---\n\n"
             f"### 🔬 【研究廠長 A 審查紀錄】\n\n{critic_a_feedback}\n\n"
             f"### 🏭 【部署廠長 B 審查紀錄】\n\n{critic_b_feedback}\n"
         )
             
-        insight_content = final_insight + debate_log
+        insight_content = final_insight + "\n\n---\n\n" + planning_update + debate_log
 
-        LOGGER.info("最終洞察報告（研究廠長A + 部署廠長B 雙層審查）準備完成！")
+        LOGGER.info("最終洞察報告（廠長A + 廠長B + 規劃更新建議）準備完成！")
     except Exception as exc:
         LOGGER.exception(f"呼叫 Gemini API 失敗: {exc}")
         return
