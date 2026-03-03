@@ -16,9 +16,19 @@ OUT_DIR = PROJECT_ROOT / "out"
 logging.basicConfig(level=logging.INFO, format="%(asctime)s | %(levelname)s | %(message)s")
 LOGGER = logging.getLogger(__name__)
 
-# 研究文件定義（唯一 context：我的規劃.md 已整合問題空間 + 技術選型 + 文獻對應 + RBv3架構）
+# 研究文件定義（三份文件：規劃地圖 + 工程規格 + 已評析文獻索引）
+# Gemini 2.5 Flash context window = 1,000,000 tokens，三份合計 ~60,000 字，完全不需要截斷規劃文件
 RESEARCH_DOCS = {
     "研究規劃說明書（P1-P4 × 130個問題 × 技術選型 × RBv3架構 × 優先缺口）": PROJECT_ROOT / "我的規劃.md",
+    "工程規格書（RBv3架構 × 硬體BOM × 量化指標 × §4.3四個開放缺口）": PROJECT_ROOT / "論文.md",
+    "已評析文獻索引（67篇 × 防止重複推薦 × P1-P4對應）": PROJECT_ROOT / "文獻.md",
+}
+
+# 各文件截斷上限（字元）。文獻.md 只需章節索引，取前段即可；其他完整載入
+DOC_TRUNCATE = {
+    "我的規劃.md": 40000,
+    "論文.md":    30000,
+    "文獻.md":    15000,  # 前 15000 字已含全部文獻索引與章節標題
 }
 
 # 分析框架 Prompt（缺口清單從研究文件動態讀取，不在此寫死）
@@ -46,26 +56,26 @@ ANALYSIS_FRAMEWORK = """
 
 
 def load_research_context() -> str:
-    """動態載入所有研究文件作為分析 Context"""
+    """動態載入所有研究文件作為分析 Context（三份文件：規劃 + 工程規格 + 已評析文獻）"""
     context_parts = []
-    
+
     for doc_name, doc_path in RESEARCH_DOCS.items():
         if not doc_path.exists():
             LOGGER.warning(f"找不到研究文件: {doc_path}")
             continue
-        
+
         content = doc_path.read_text(encoding='utf-8')
-        # 截斷長文件到 15,000 字元
-        if len(content) > 15000:
-            content = content[:15000] + "\n\n...(文件過長，已截取前段)\n"
-        
+        limit = DOC_TRUNCATE.get(doc_path.name, 40000)
+        if len(content) > limit:
+            content = content[:limit] + f"\n\n...(已截取前 {limit} 字元)\n"
+
         context_parts.append(f"## {doc_name}\n\n{content}")
         LOGGER.info(f"載入研究文件: {doc_name} ({len(content)} 字元)")
-    
+
     if not context_parts:
         LOGGER.error("沒有找到任何研究文件！")
         return ""
-    
+
     return "\n\n---\n\n".join(context_parts)
 
 
@@ -179,69 +189,124 @@ def generate_insights(date_str: str) -> None:
         initial_insight = response.text
         LOGGER.info("初稿戰略報告生成成功！正在進入魔鬼審查員 (Critic) 沙盤辯論...")
 
-        # --- Critic Phase ---
-        critic_prompt = f"""你是一位深諳工廠實務的廠長兼工業 5.0 架構師（魔鬼審查員）。
-你的任務是審查軍師提出的「Top 50 技術提案」是否「能在我們的工廠落地」。
+        # --- 廠長 A：研究廠長（事前地圖完善，才能審出有意義的研究方向）---
+        critic_a_prompt = f"""你是一位熟讀研究計畫的「研究廠長」。
+你的任務只有一件事：**判斷軍師提出的每篇提案，對這個研究的「知識地圖建構」有沒有價值**。
 
-⚠️ 你不需要管「我們工廠有什麼問題」（那是軍師的事），你只需要管「這些技術跑不跑得動、用不用得起」。
+⚠️ 這個階段你不管技術能不能跑、有沒有開源碼。那是下一位廠長的事。
+你只管：「這篇論文或工具，有沒有填補我們研究地圖上的空格？」
 
+你手上有完整的研究文件（含 §4.3 四個開放缺口、67 篇已評析文獻清單、B01-B15 Brownfield 約束）。
 
-你的考核基準（三把刀）：
-1. 🔪 開源可用性（大屠殺條件）：有沒有釋出開源程式碼/權重 (GitHub/HuggingFace)？只有論文沒有 code → 直接 REJECT。
-2. 🔪 硬體可跑性：能不能在 Jetson Orin Nano 8GB 跑推論？還是只能在 A100 上跑？模型太大就要評估是否可以用知識蒸餾/量化壓到邊緣。跑不了邊緣但可以放後台 5070 Ti 離線處理的，標記為「PASS（限後台）」。
-3. 🔪 Brownfield 抗性：對照 B01-B15，這個技術在我們的環境會不會直接失效？（例如需要大量標注 → 違反 B06、需要穩定網路 → 違反 B03/B11、金屬反光會炸掉 → 命中 B08）
+判定結果只有四種：
+- **SIGNAL**    ：直接命中 P1/P2/P3/P4 或四個開放缺口（E01/B06/P4語意/P3災難遺忘），有明確的研究方向填補價值。
+- **WATCH**     ：技術方向間接相關，不是核心缺口但值得持續追蹤。
+- **DUPLICATE** ：已評析文獻索引中有相同技術（必須引用具體的文獻編號，如「已在 [32] DKT 評析」）。
+- **NOISE**     ：與本研究 P1-P4 及 6M1E 無任何關聯。
 
 以下是軍師提出的 Top 50 初步戰略：
 {initial_insight}
 
 請逐篇評估，格式如下：
 
-### 審查 TOP 1: [文章標題]
-- **【判定結果】**: PASS / PASS（限後台）/ REJECT
-- **【廠長嚴批】**: (引用具體的 B 編號或硬體規格來說明理由，禁止空泛批評)
+### 研究審查 TOP 1: [文章標題]
+- **【研究判定】**: SIGNAL / WATCH / DUPLICATE / NOISE
+- **【理由】**: (SIGNAL 請引用具體問題編號或缺口；DUPLICATE 請引用文獻編號；NOISE 一句話說明為何無關)
 """
-        critic_response = client.models.generate_content(
+        critic_a_response = client.models.generate_content(
             model='gemini-2.5-flash',
-            contents=critic_prompt
+            contents=critic_a_prompt
         )
-        critic_feedback = critic_response.text
-        LOGGER.info(f"魔鬼審查完成。")
+        critic_a_feedback = critic_a_response.text
+        LOGGER.info("研究廠長 A 審查完成。")
 
-        # --- Revision Phase ---
-        if "REJECT" in critic_feedback.upper():
-            LOGGER.info("有提案被退回，軍師正在進行逐篇自我修正 (Reflection)...")
-            revise_prompt = f"""軍師，你先前的 Top 50 戰略提案已經被具有實務經驗的廠長（魔鬼審查員）逐篇審查並給予無情批評。
-以下是廠長的逐篇審查意見：
-{critic_feedback}
+        # --- 廠長 B：部署廠長（只審 SIGNAL 那幾篇）---
+        critic_b_prompt = f"""你是一位深諳工廠實務的「部署廠長」兼工業 5.0 架構師。
+研究廠長已經篩出「有研究方向價值」的提案（SIGNAL），你現在只需要審查這些 SIGNAL 提案的落地可行性。
+
+你的三把刀：
+1. 🔪 開源可用性：有無 GitHub/HuggingFace 程式碼/權重？
+   - 有碼 → 進入下一把刀
+   - 無碼但方向明確 → **PENDING CODE**（列入待追蹤，等碼釋出）
+2. 🔪 硬體可跑性：
+   - Jetson Orin Nano 8GB 邊緣推論可行 → **PASS**
+   - 只能後台 RTX 5070 Ti 離線處理 → **PASS（限後台）**
+   - 連後台都跑不動（A100 only，無蒸餾路徑） → **PENDING CODE**（等量化/蒸餾版本）
+3. 🔪 Brownfield 抗性：
+   - 違反 B06（需大量標注）、B11（需穩定網路）、B08（金屬反光直接失效）者，降級為 **PASS（限後台）** 或說明規避方案。
+
+以下是研究廠長的審查結果（請找出 SIGNAL 的條目逐一審查）：
+{critic_a_feedback}
+
+請只針對 SIGNAL 條目逐篇評估，格式如下：
+
+### 部署審查 TOP X: [文章標題]
+- **【部署判定】**: PASS / PASS（限後台）/ PENDING CODE
+- **【廠長說明】**: (引用具體 B 編號或硬體規格；PENDING CODE 請說明「等什麼才能用」)
+"""
+        critic_b_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=critic_b_prompt
+        )
+        critic_b_feedback = critic_b_response.text
+        LOGGER.info("部署廠長 B 審查完成。")
+
+        # --- Revision Phase：軍師整合兩位廠長意見 ---
+        LOGGER.info("軍師正在整合兩位廠長意見，產出最終報告...")
+        revise_prompt = f"""軍師，你的 Top 50 提案已經過兩位廠長審查：
+
+【研究廠長 A 的意見】（判斷研究地圖價值）：
+{critic_a_feedback}
+
+【部署廠長 B 的意見】（判斷落地可行性，只審 SIGNAL）：
+{critic_b_feedback}
 
 === 你的原初稿內容 ===
 {initial_insight}
 =================
 
-請根據廠長的批評，執行自我修正 (Self-Correction)，重新撰寫一份務實的「Top 精華情報大會審 (V2 妥協版)」。
-對於被廠長 `REJECT` 的提案，你必須放棄原先誇大的想法，改為「降級妥協方案」（例如大模型改用知識蒸餾版、放在雲端離線處理、或是引入 Execution Gating 保守策略等），或者如果不具備任何落地可能，直接標註「因硬體限制擱置」。
-對於被廠長 `PASS` 的提案，請保留並寫入廠長的警語。
+請根據兩位廠長的意見，整合產出最終版「研究情報彙整報告 V2」，規則如下：
 
-請使用以下格式逐一列出這幾篇精華情報：
-### 📍 TOP 1: [文章標題]
+- **SIGNAL + PASS / PASS（限後台）**：完整保留，附部署廠長警語。這是「可立即行動」的情報。
+- **SIGNAL + PENDING CODE**：保留研究方向說明，標記「⏳ 待碼追蹤：[說明等待什麼]」。這是「列入觀察名單」的情報。
+- **WATCH**：以一句話保留，標記「👀 持續關注」。不需展開。
+- **DUPLICATE**：標記「📚 已收錄於文獻.md [編號]，本次新增補充：[說明本次情報比已評析版本多了什麼新資訊]」。
+- **NOISE**：直接移除，不出現在最終報告。
+
+請按以下格式輸出：
+
+## 🎯 可立即行動（SIGNAL + PASS）
+### 📍 [文章標題]
 - **命中缺口：** ...
-- **最終可落地方案 (經廠長審查)：** (結合你的原意與廠長的限制，給出最務實的做法)
+- **落地方案：** ...
+- **廠長警語：** ...
 
-### 📍 TOP 2... (依此類推，直到挑滿 50 篇)
+## ⏳ 待碼追蹤（SIGNAL + PENDING CODE）
+### 📍 [文章標題]
+- **命中缺口：** ...
+- **研究方向價值：** ...
+- **待追蹤：** 等 [什麼條件] 釋出後即可行動
+
+## 👀 持續關注（WATCH）
+- [文章標題]：[一句話說明關注原因]
+
+## 📚 已收錄文獻補充（DUPLICATE）
+- [文章標題]：已在文獻.md [編號] 評析。本次補充：[新資訊]
 """
-            revise_response = client.models.generate_content(
-                model='gemini-2.5-flash',
-                contents=revise_prompt
-            )
-            final_insight = revise_response.text
-            debate_log = f"\n\n### ⚠️ 【幕後沙盤演練紀實：逐篇審查與修正】\n\n{critic_feedback}\n\n- **🔄 軍師自我修正**：已根據廠長意見，將不切實際的方案降級，產出上述 V2 策略。\n"
-        else:
-            final_insight = initial_insight
-            debate_log = f"\n\n### ⚠️ 【幕後沙盤演練紀實：魔鬼審查全數通過】\n\n{critic_feedback}\n"
+        revise_response = client.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=revise_prompt
+        )
+        final_insight = revise_response.text
+        debate_log = (
+            f"\n\n---\n\n"
+            f"### 🔬 【研究廠長 A 審查紀錄】\n\n{critic_a_feedback}\n\n"
+            f"### 🏭 【部署廠長 B 審查紀錄】\n\n{critic_b_feedback}\n"
+        )
             
         insight_content = final_insight + debate_log
 
-        LOGGER.info("最終洞察報告 (含逐篇沙盤辯論紀錄) 準備完成！")
+        LOGGER.info("最終洞察報告（研究廠長A + 部署廠長B 雙層審查）準備完成！")
     except Exception as exc:
         LOGGER.exception(f"呼叫 Gemini API 失敗: {exc}")
         return
