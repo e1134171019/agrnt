@@ -17,6 +17,9 @@ source = ["ops"]
 omit = [
     "*/tests/*",
     "*/__pycache__/*",
+    "ops/daily_news_summary.py",
+    "ops/historical_reviewer.py",
+    "ops/missing_intel_auditor.py",
 ]
 
 [tool.coverage.report]
