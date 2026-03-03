@@ -28,35 +28,36 @@ jobs:
         run: |
           python analyze_gaps.py
 
-      - name: Read report
+      - name: Get report date
         id: report
         run: |
           DATE=$(date +%Y-%m-%d)
-          REPORT_FILE="out/gap_analysis_${DATE}.md"
-          if [ -f "$REPORT_FILE" ]; then
-            # GitHub Issue body 上限 65536 bytes，取前 60000 字元
-            CONTENT=$(head -c 60000 "$REPORT_FILE")
-            # 使用 heredoc 避免特殊字元問題
-            echo "content<<GAPREPORT_EOF" >> "$GITHUB_OUTPUT"
-            echo "$CONTENT" >> "$GITHUB_OUTPUT"
-            echo "GAPREPORT_EOF" >> "$GITHUB_OUTPUT"
-            echo "date=${DATE}" >> "$GITHUB_OUTPUT"
-          else
-            echo "report file not found"
-            exit 1
-          fi
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          ls out/gap_analysis_*.md 2>/dev/null && echo "Report files found" || echo "No report files found"
 
       - name: Create GitHub Issue with gap analysis report
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const content = `${{ steps.report.outputs.content }}`;
-            const date = `${{ steps.report.outputs.date }}`;
+            const fs = require('fs');
+            const date = '${{ steps.report.outputs.date }}';
+            const reportFile = `out/gap_analysis_${date}.md`;
+
+            let body = '';
+            if (fs.existsSync(reportFile)) {
+              body = fs.readFileSync(reportFile, 'utf8');
+              // GitHub Issue 上限 65536 bytes，安全截斷
+              if (body.length > 65000) {
+                body = body.substring(0, 65000) + '\n\n...(報告過長，已截斷)';
+              }
+            } else {
+              body = '找不到報告檔案：' + reportFile;
+            }
+
             await github.rest.issues.create({
               owner: context.repo.owner,
               repo: context.repo.repo,
               title: `📊 [研究規劃] 67篇文獻 × T01-T17 待決清單比對報告 ${date}`,
-              body: content,
-              labels: ['research-planning', 'gap-analysis']
+              body: body,
             });
